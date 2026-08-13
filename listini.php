@@ -1,6 +1,6 @@
 <?php 
 /*
-06-08-2026
+13-08-2026 desde PC
 */
 require_once __DIR__ . '/conexion.php';
 
@@ -24,6 +24,9 @@ $productosUnPrecio = [
 $datosPorProducto = [];
 $datosUnPrecio = [];
 $datosSobretodo = [];
+$columnasAccesorios = [];
+$datosAccesorios = [];
+$errorAccesorios = '';
 
 foreach ($productosObjetivo as $item) {
 	$datosPorProducto[$item['db']] = [];
@@ -83,6 +86,27 @@ if ($resultadoSobretodo) {
 	mysqli_free_result($resultadoSobretodo);
 } else {
 	die('Error en la consulta de filas sobretodo: ' . mysqli_error($conexion));
+}
+
+$resultadoColumnasAccesorios = mysqli_query($conexion, "SHOW COLUMNS FROM accesorios");
+
+if ($resultadoColumnasAccesorios) {
+	while ($columnaAccesorio = mysqli_fetch_assoc($resultadoColumnasAccesorios)) {
+		$columnasAccesorios[] = $columnaAccesorio['Field'];
+	}
+	mysqli_free_result($resultadoColumnasAccesorios);
+
+	$resultadoAccesorios = mysqli_query($conexion, "SELECT * FROM accesorios");
+	if ($resultadoAccesorios) {
+		while ($filaAccesorio = mysqli_fetch_assoc($resultadoAccesorios)) {
+			$datosAccesorios[] = $filaAccesorio;
+		}
+		mysqli_free_result($resultadoAccesorios);
+	} else {
+		$errorAccesorios = 'No se pudieron leer los datos de accesorios: ' . mysqli_error($conexion);
+	}
+} else {
+	$errorAccesorios = 'No se pudo leer la estructura de accesorios: ' . mysqli_error($conexion);
 }
 ?>
 <!DOCTYPE html>
@@ -371,6 +395,45 @@ if ($resultadoSobretodo) {
 						</div>
 					<?php else: ?>
 						<p class="sin-datos">No hay registros en la tabla sobretodo.</p>
+					<?php endif; ?>
+				</section>
+
+				<section class="bloque-tabla">
+					<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
+						<span>Accessories</span>
+						<span class="acordeon-flecha">▼</span>
+					</div>
+					<?php if ($errorAccesorios !== ''): ?>
+						<p class="sin-datos"><?php echo htmlspecialchars($errorAccesorios, ENT_QUOTES, 'UTF-8'); ?></p>
+					<?php elseif (!empty($columnasAccesorios)): ?>
+						<div class="tabla-wrapper">
+							<table>
+								<thead>
+									<tr>
+										<?php foreach ($columnasAccesorios as $columnaAccesorio): ?>
+											<th><?php echo htmlspecialchars($columnaAccesorio, ENT_QUOTES, 'UTF-8'); ?></th>
+										<?php endforeach; ?>
+									</tr>
+								</thead>
+								<tbody>
+									<?php if (!empty($datosAccesorios)): ?>
+										<?php foreach ($datosAccesorios as $filaAccesorio): ?>
+											<tr>
+												<?php foreach ($columnasAccesorios as $columnaAccesorio): ?>
+													<td><?php echo htmlspecialchars((string) ($filaAccesorio[$columnaAccesorio] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+												<?php endforeach; ?>
+											</tr>
+										<?php endforeach; ?>
+									<?php else: ?>
+										<tr>
+											<td colspan="<?php echo count($columnasAccesorios); ?>">No hay registros en la tabla accesorios.</td>
+										</tr>
+									<?php endif; ?>
+								</tbody>
+							</table>
+						</div>
+					<?php else: ?>
+						<p class="sin-datos">No se encontraron columnas en la tabla accesorios.</p>
 					<?php endif; ?>
 				</section>
 			<?php endif; ?>

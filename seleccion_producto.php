@@ -1,6 +1,6 @@
 <?php
 /*
-09-08-2026
+13-08-2026  desde PC
 Archivo: seleccion_producto.php
 Descripción: Página para seleccionar productos y telas para un pedido de un cliente.
 */
@@ -262,6 +262,9 @@ $productosUnPrecio = [
 $datosPorProducto = [];
 $datosUnPrecio = [];
 $datosSobretodo = [];
+$columnasAccesorios = [];
+$datosAccesorios = [];
+$errorAccesorios = '';
 $datosTelas = [];
 $datosTelasPorMuestrario = [];
 
@@ -322,6 +325,27 @@ if ($resultadoSobretodo) {
 	mysqli_free_result($resultadoSobretodo);
 } else {
 	die('Error en la consulta de filas sobretodo: ' . mysqli_error($conexion));
+}
+
+$resultadoColumnasAccesorios = mysqli_query($conexion, "SHOW COLUMNS FROM accesorios");
+
+if ($resultadoColumnasAccesorios) {
+	while ($columnaAccesorio = mysqli_fetch_assoc($resultadoColumnasAccesorios)) {
+		$columnasAccesorios[] = (string) ($columnaAccesorio['Field'] ?? '');
+	}
+	mysqli_free_result($resultadoColumnasAccesorios);
+
+	$resultadoAccesorios = mysqli_query($conexion, "SELECT * FROM accesorios");
+	if ($resultadoAccesorios) {
+		while ($filaAccesorio = mysqli_fetch_assoc($resultadoAccesorios)) {
+			$datosAccesorios[] = $filaAccesorio;
+		}
+		mysqli_free_result($resultadoAccesorios);
+	} else {
+		$errorAccesorios = 'No se pudieron leer los datos de accesorios: ' . mysqli_error($conexion);
+	}
+} else {
+	$errorAccesorios = 'No se pudo leer la estructura de accesorios: ' . mysqli_error($conexion);
 }
 
 $sqlTelas = "SELECT Id, articulo, muestrario, composicion, pero, rango, pagina, foto
@@ -1037,6 +1061,86 @@ if ($resultadoTelas) {
 						</div>
 					<?php else: ?>
 						<p class="sin-datos">No hay registros en la tabla sobretodo.</p>
+					<?php endif; ?>
+				</section>
+
+				<section class="bloque-tabla">
+					<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
+						<span>Accessories</span>
+						<span class="acordeon-flecha">▼</span>
+					</div>
+					<?php if ($errorAccesorios !== ''): ?>
+						<p class="sin-datos"><?php echo htmlspecialchars($errorAccesorios, ENT_QUOTES, 'UTF-8'); ?></p>
+					<?php elseif (!empty($columnasAccesorios)): ?>
+						<div class="tabla-wrapper">
+							<table>
+								<thead>
+									<tr>
+										<?php foreach ($columnasAccesorios as $columnaAccesorio): ?>
+											<th><?php echo htmlspecialchars($columnaAccesorio, ENT_QUOTES, 'UTF-8'); ?></th>
+										<?php endforeach; ?>
+										<th class="col-seleccion">Agregar</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php if (!empty($datosAccesorios)): ?>
+										<?php foreach ($datosAccesorios as $indiceAccesorio => $filaAccesorio): ?>
+											<?php
+												$partesDescripcionAccesorio = [];
+												foreach ($columnasAccesorios as $columnaAccesorio) {
+													if (strtolower($columnaAccesorio) === 'id') {
+														continue;
+													}
+
+													$valorColumnaAccesorio = trim((string) ($filaAccesorio[$columnaAccesorio] ?? ''));
+													if ($valorColumnaAccesorio !== '') {
+														$partesDescripcionAccesorio[] = $columnaAccesorio . ': ' . $valorColumnaAccesorio;
+													}
+												}
+
+												if (empty($partesDescripcionAccesorio)) {
+													$partesDescripcionAccesorio[] = 'Fila: ' . ($indiceAccesorio + 1);
+												}
+
+												$textoAccesorio = 'Accessories | ' . implode(' | ', $partesDescripcionAccesorio);
+												$precioAccesorio = 0;
+												$columnasPrecioAccesorio = ['precio', 'price', 'valor', 'monto', 'costo'];
+												foreach ($columnasPrecioAccesorio as $columnaPrecioAccesorio) {
+													foreach ($filaAccesorio as $nombreColumnaAccesorio => $valorColumnaAccesorio) {
+														if (strtolower((string) $nombreColumnaAccesorio) === $columnaPrecioAccesorio && is_numeric($valorColumnaAccesorio)) {
+															$precioAccesorio = (int) round((float) $valorColumnaAccesorio);
+															break 2;
+														}
+													}
+												}
+											?>
+											<tr>
+												<?php foreach ($columnasAccesorios as $columnaAccesorio): ?>
+													<td><?php echo htmlspecialchars((string) ($filaAccesorio[$columnaAccesorio] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+												<?php endforeach; ?>
+												<td class="cell-check">
+													<?php $estaSeleccionado = producto_marcado_en_pedido($textoAccesorio, $productosSeleccionadosMapa, $productosPedidoActual); ?>
+													<input
+														type="checkbox"
+														class="check-producto"
+														data-item="<?php echo htmlspecialchars($textoAccesorio, ENT_QUOTES, 'UTF-8'); ?>"
+														data-producto="<?php echo htmlspecialchars($textoAccesorio, ENT_QUOTES, 'UTF-8'); ?>"
+														data-precio="<?php echo $precioAccesorio; ?>"
+														<?php echo $estaSeleccionado ? 'checked' : ''; ?>
+													>
+												</td>
+											</tr>
+										<?php endforeach; ?>
+									<?php else: ?>
+										<tr>
+											<td colspan="<?php echo count($columnasAccesorios) + 1; ?>">No hay registros en la tabla accesorios.</td>
+										</tr>
+									<?php endif; ?>
+								</tbody>
+							</table>
+						</div>
+					<?php else: ?>
+						<p class="sin-datos">No se encontraron columnas en la tabla accesorios.</p>
 					<?php endif; ?>
 				</section>
 			<?php endif; ?>
