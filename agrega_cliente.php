@@ -1,0 +1,219 @@
+<?php
+require_once __DIR__ . '/conexion.php';
+
+$nombre = '';
+$usuario = '';
+$fecha = '';
+$mensaje = '';
+$tipoMensaje = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+	$nombre = trim($_POST['nombre'] ?? '');
+	$usuario = trim($_POST['usuario'] ?? '');
+	$fecha = trim($_POST['fecha'] ?? '');
+
+	$fechaValida = false;
+	if ($fecha !== '') {
+		$fechaObj = DateTime::createFromFormat('Y-m-d', $fecha);
+		$fechaValida = $fechaObj && $fechaObj->format('Y-m-d') === $fecha;
+	}
+
+	if ($nombre === '' || $usuario === '' || $fecha === '') {
+		$mensaje = 'Complete todos los campos.';
+		$tipoMensaje = 'error';
+	} elseif (!$fechaValida) {
+		$mensaje = 'La fecha no tiene un formato valido.';
+		$tipoMensaje = 'error';
+	} else {
+		$pedido = 1;
+		$producto = '0';
+		$precio = 0;
+
+		$sql = 'INSERT INTO cliente (nombre, usuario, pedido, fecha, producto, precio) VALUES (?, ?, ?, ?, ?, ?)';
+		$stmt = mysqli_prepare($conexion, $sql);
+
+		if ($stmt) {
+			mysqli_stmt_bind_param($stmt, 'ssissi', $nombre, $usuario, $pedido, $fecha, $producto, $precio);
+			$ok = mysqli_stmt_execute($stmt);
+
+			if ($ok) {
+				$mensaje = 'Cliente agregado correctamente.';
+				$tipoMensaje = 'ok';
+				$nombre = '';
+				$usuario = '';
+				$fecha = '';
+		body {
+				$mensaje = 'No se pudo guardar el cliente.';
+			min-height: 100dvh;
+			}
+
+			mysqli_stmt_close($stmt);
+			display: flex;
+			justify-content: center;
+			align-items: flex-start;
+			padding: clamp(12px, 2.6vw, 24px);
+			overflow-x: hidden;
+			overflow-y: auto;
+		}
+	}
+}
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			margin: 0 auto;
+	<title>Agregar cliente</title>
+
+		@media (max-width: 640px) {
+			.contenedor {
+				padding: 18px;
+				border-radius: 12px;
+			}
+		}
+	<style>
+		:root {
+			--fondo: #f2f6fb;
+			--panel: #ffffff;
+			--texto: #1f2937;
+			--borde: #d6dee8;
+			--acento: #0f766e;
+			--acento-hover: #0b5f59;
+			--sombra: 0 12px 28px rgba(15, 23, 42, 0.12);
+			--error: #b91c1c;
+			--ok: #166534;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			background: #e9eef9;
+			color: var(--texto);
+			display: grid;
+			place-items: center;
+			padding: 24px;
+		}
+
+		.contenedor {
+			width: min(620px, 100%);
+			background: var(--panel);
+			border: 1px solid var(--borde);
+			border-radius: 16px;
+			padding: 24px;
+			box-shadow: var(--sombra);
+		}
+
+		h1 {
+			margin: 0 0 18px;
+			font-size: 1.55rem;
+		}
+
+		.formulario {
+			display: grid;
+			gap: 12px;
+		}
+
+		.campo {
+			display: grid;
+			gap: 6px;
+		}
+
+		label {
+			font-weight: 600;
+			font-size: 0.95rem;
+		}
+
+		input {
+			padding: 10px;
+			border: 1px solid var(--borde);
+			border-radius: 8px;
+			font-size: 0.95rem;
+		}
+
+		.acciones {
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+			margin-top: 6px;
+		}
+
+		.boton {
+			display: inline-block;
+			text-decoration: none;
+			border: 0;
+			cursor: pointer;
+			background: var(--acento);
+			color: #ffffff;
+			font-weight: 600;
+			font-size: 0.92rem;
+			padding: 9px 14px;
+			border-radius: 10px;
+			transition: background 0.2s ease;
+		}
+
+		.boton:hover,
+		.boton:focus-visible {
+			background: var(--acento-hover);
+		}
+
+		.boton-secundario {
+			background: #334155;
+		}
+
+		.boton-secundario:hover,
+		.boton-secundario:focus-visible {
+			background: #1e293b;
+		}
+
+		.mensaje {
+			margin: 0 0 12px;
+			font-weight: 700;
+		}
+
+		.mensaje.error {
+			color: var(--error);
+		}
+
+		.mensaje.ok {
+			color: var(--ok);
+		}
+	</style>
+</head>
+<body>
+	<main class="contenedor">
+		<h1>Agregar cliente</h1>
+
+		<?php if ($mensaje !== ''): ?>
+			<p class="mensaje <?php echo htmlspecialchars($tipoMensaje, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8'); ?></p>
+		<?php endif; ?>
+
+		<form class="formulario" method="post" action="">
+			<div class="campo">
+				<label for="nombre">Nombre</label>
+				<input type="text" id="nombre" name="nombre" value="<?php echo htmlspecialchars($nombre, ENT_QUOTES, 'UTF-8'); ?>" maxlength="40" required>
+			</div>
+
+			<div class="campo">
+				<label for="usuario">Usuario</label>
+				<input type="text" id="usuario" name="usuario" value="<?php echo htmlspecialchars($usuario, ENT_QUOTES, 'UTF-8'); ?>" maxlength="30" required>
+			</div>
+
+			<div class="campo">
+				<label for="fecha">Fecha</label>
+				<input type="date" id="fecha" name="fecha" value="<?php echo htmlspecialchars($fecha, ENT_QUOTES, 'UTF-8'); ?>" required>
+			</div>
+
+			<div class="acciones">
+				<button class="boton" type="submit">Aceptar</button>
+				<a class="boton boton-secundario" href="inicio.php">Volver</a>
+			</div>
+		</form>
+	</main>
+</body>
+</html>

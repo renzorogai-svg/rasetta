@@ -1,0 +1,24 @@
+- daywear (ropa de dia)
+  2 piece suite (traje de dos puiezas) ---------(dia)
+  3 pieces suit (traje de tres piezas) ---------(dia)
+    silk lining ...........accesorios
+    meta/leather button ...........accesorios
+    lm1 jacjet  ...........accesorios
+    lm1 trousers    ...........accesorios
+    lm3 jacket  ...........accesorios
+    lm3 trousers    ...........accesorios
+  jacket (chaqueta) --------- (dia)
+  trousers (pantalones)  unprecio
+  vest (chaleco)   unprecio
+  overcoat (sobretodo)   ...... sobreto
+    lm1 overcoat ...........accesorios
+    lm3 overcoat ...........accesorios
+- Eveningwear (ropa de noche)
+  tuxedo (smoking)  ..... unprecio
+  3 pieces tuxedo   ..... unprecio
+
+  dinner jacket (esmoquin) ..... unprecio
+  tuxedo trousers (Pantalones de esmoquin) ..... unprecio
+  Tail Coat (frac)    ..... unprecio
+  Morning Coat Jacket (Chaqueta de chaqué) ..... unprecio
+
