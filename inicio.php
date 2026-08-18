@@ -1,5 +1,5 @@
 <?php
-/** 11-08-2026
+/** 17-08-2026 desde laptop
  * inicio.php
  *
  * Página de inicio del administrador.
@@ -17,377 +17,351 @@ $rutaFondo = __DIR__ . '/fotos/fondo.jpg';
 $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (string) time();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-	$usuarioBuscado = trim($_POST['usuario'] ?? '');
+    $usuarioBuscado = trim($_POST['usuario'] ?? '');
 
-	if ($usuarioBuscado === '') {
-		$mensaje = 'Ingrese un usuario para buscar.';
-	} else {
-		header('Location: ver_cliente.php?usuario=' . urlencode($usuarioBuscado));
-		exit;
-	}
+    if ($usuarioBuscado === '') {
+        $mensaje = 'Ingrese un usuario para buscar.';
+    } else {
+        header('Location: ver_cliente.php?usuario=' . urlencode($usuarioBuscado));
+        exit;
+    }
 }
 
 $stmtClientes = mysqli_prepare($conexion, "SELECT DISTINCT usuario, nombre FROM cliente WHERE TRIM(usuario) <> '' ORDER BY nombre ASC, usuario ASC");
 
 if ($stmtClientes) {
-	mysqli_stmt_execute($stmtClientes);
-	$resultadoClientes = mysqli_stmt_get_result($stmtClientes);
+    mysqli_stmt_execute($stmtClientes);
+    $resultadoClientes = mysqli_stmt_get_result($stmtClientes);
 
-	if ($resultadoClientes) {
-		while ($cliente = mysqli_fetch_assoc($resultadoClientes)) {
-			$clientesDisponibles[] = [
-				'usuario' => (string) ($cliente['usuario'] ?? ''),
-				'nombre' => (string) ($cliente['nombre'] ?? '')
-			];
-		}
-	}
+    if ($resultadoClientes) {
+        while ($cliente = mysqli_fetch_assoc($resultadoClientes)) {
+            $clientesDisponibles[] = [
+                'usuario' => (string) ($cliente['usuario'] ?? ''),
+                'nombre' => (string) ($cliente['nombre'] ?? '')
+            ];
+        }
+    }
 
-	mysqli_stmt_close($stmtClientes);
+    mysqli_stmt_close($stmtClientes);
 }
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Administrador</title>
-	<style>
-		:root {
-			--fondo: #f2f6fb;
-			--panel: #ffffff;
-			--texto: #1f2937;
-			--borde: #d6dee8;
-			--acento: #0f766e;
-			--acento-hover: #0b5f59;
-			--sombra: 0 12px 28px rgba(15, 23, 42, 0.12);
-		}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrador</title>
+    <style>
+        :root {
+            --fondo: #1e293b;
+            --panel-header: #0f172a;
+            --panel-bg: rgba(255, 255, 255, 0.95);
+            --texto: #1e293b;
+            --borde: #cbd5e1;
+            --acento: #0284c7;
+            --acento-hover: #0369a1;
+            --sombra: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+        }
 
-		* {
-			box-sizing: border-box;
-		}
+        * {
+            box-sizing: border-box;
+        }
 
-		body {
-			position: relative;
-			margin: 0;
-			min-height: 100dvh;
-			font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-			background: #e9eef9;
-			color: var(--texto);
-			display: flex;
-			justify-content: center;
-			align-items: flex-start;
-			padding: clamp(12px, 2.6vw, 24px);
-			overflow-x: hidden;
-			overflow-y: auto;
-		}
+        body {
+            position: relative;
+            margin: 0;
+            height: 100vh;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: #e2e8f0;
+            color: var(--texto);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-		body::before {
-			content: "";
-			position: fixed;
-			inset: 0;
-			background: url("fotos/fondo.jpg?v=<?php echo htmlspecialchars($versionFondo, ENT_QUOTES, 'UTF-8'); ?>") center center / contain no-repeat;
-		    z-index: -2;
-		}
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: url("fotos/fondo.jpg?v=<?php echo htmlspecialchars($versionFondo, ENT_QUOTES, 'UTF-8'); ?>") center center / cover no-repeat;
+            z-index: -2;
+            filter: brightness(0.85);
+        }
 
-		.contenedor {
-			width: min(900px, 100%);
-			background: rgba(255, 255, 255, 0.3);
-			border: 1px solid var(--borde);
-			border-radius: 16px;
-			padding: 28px;
-			box-shadow: var(--sombra);
-			margin: 0 auto;
-		}
+        /* BARRA SUPERIOR TIPO WINDOWS / APP */
+        .app-header {
+            background: var(--panel-header);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            height: 52px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            position: relative;
+        }
 
-		h1 {
-			margin: 0 0 22px;
-			text-align: center;
-			font-size: 1.9rem;
-			letter-spacing: 0.3px;
-		}
+        .app-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: 0.5px;
+        }
 
-		.grid {
-			display: grid;
-			grid-template-columns: 1fr;
-			gap: 16px;
-		}
+        .app-title-icon {
+            width: 12px;
+            height: 12px;
+            background: #38bdf8;
+            border-radius: 2px;
+        }
 
-		.tarjeta {
-			border: 1px solid var(--borde);
-			border-radius: 12px;
-			padding: 18px;
-			background: #fbfdff;
-			display: flex;
-			flex-direction: column;
-			gap: 14px;
-		}
+        .toolbar-menu {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+        }
 
-		.titulo-tarjeta {
-			margin: 0;
-			font-size: 1.08rem;
-			line-height: 1.35;
-		}
+        .btn-tool {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #f8fafc;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
 
-		.boton {
-			display: inline-block;
-			align-self: flex-start;
-			text-align: center;
-			text-decoration: none;
-			background: var(--acento);
-			color: #ffffff;
-			font-weight: 600;
-			font-size: 0.92rem;
-			padding: 8px 12px;
-			border-radius: 10px;
-			transition: background 0.2s ease;
-		}
+        .btn-tool:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #ffffff;
+        }
 
-		.boton:hover,
-		.boton:focus-visible {
-			background: var(--acento-hover);
-		}
+        .btn-tool-primary {
+            background: var(--acento);
+            border-color: var(--acento);
+        }
 
-		.formulario {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 10px;
-			align-items: end;
-		}
+        .btn-tool-primary:hover {
+            background: var(--acento-hover);
+            border-color: var(--acento-hover);
+        }
 
-		.campo {
-			display: flex;
-			flex-direction: column;
-			gap: 6px;
-			min-width: 240px;
-			flex: 1;
-		}
+        /* CONTENEDOR DESPLEGABLE EN LA BARRA DE HERRAMIENTAS */
+        .menu-buscar-wrapper {
+            position: relative;
+        }
 
-		.campo label {
-			font-size: 0.9rem;
-			font-weight: 600;
-		}
+        .dropdown-clientes {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            width: 320px;
+            background: #ffffff;
+            border: 1px solid var(--borde);
+            border-radius: 10px;
+            box-shadow: var(--sombra);
+            padding: 12px;
+            z-index: 2000;
+        }
 
-		.campo input {
-			padding: 9px 10px;
-			border: 1px solid var(--borde);
-			border-radius: 8px;
-			font-size: 0.95rem;
-		}
+        .dropdown-clientes.activo {
+            display: block !important;
+        }
 
-		.lista-clientes {
-			display: none;
-			margin-top: 8px;
-			border: 1px solid var(--borde);
-			border-radius: 10px;
-			background: #ffffff;
-			box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-			max-height: 240px;
-			overflow-y: auto;
-		}
+        .campo-filtro-top {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--borde);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+            margin-bottom: 10px;
+        }
 
-		.item-cliente {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			gap: 10px;
-			padding: 10px 12px;
-			text-decoration: none;
-			color: var(--texto);
-			border-bottom: 1px solid #eef3f8;
-		}
+        .campo-filtro-top:focus {
+            border-color: var(--acento);
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+        }
 
-		.item-cliente:last-child {
-			border-bottom: 0;
-		}
+        .lista-clientes {
+            max-height: 260px;
+            overflow-y: auto;
+            border: 1px solid #f1f5f9;
+            border-radius: 6px;
+        }
 
-		.item-cliente:hover,
-		.item-cliente:focus-visible {
-			background: #f3f8ff;
-		}
+        .item-cliente {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            text-decoration: none;
+            color: var(--texto);
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.88rem;
+        }
 
-		.nombre-cliente {
-			font-weight: 600;
-		}
+        .item-cliente:last-child {
+            border-bottom: none;
+        }
 
-		.usuario-cliente {
-			font-size: 0.85rem;
-			color: #4b5563;
-		}
+        .item-cliente:hover {
+            background: #f0f9ff;
+        }
 
-		.campo select {
-			padding: 9px 10px;
-			border: 1px solid var(--borde);
-			border-radius: 8px;
-			font-size: 0.95rem;
-			background: #ffffff;
-		}
+        .nombre-cliente {
+            font-weight: 600;
+            color: #0f172a;
+        }
 
-		.boton-form {
-			border: 0;
-			cursor: pointer;
-		}
+        .usuario-cliente {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
 
-		.mensaje {
-			margin: 0;
-			font-weight: 600;
-		}
+        .sin-resultados {
+            padding: 12px;
+            font-size: 0.85rem;
+            color: #64748b;
+            text-align: center;
+        }
 
-		.resultado {
-			display: grid;
-			grid-template-columns: 1fr;
-			gap: 8px;
-		}
+        /* ÁREA PRINCIPAL LIMPIA */
+        .app-workspace {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
 
-		.fila-dato {
-			display: grid;
-			grid-template-columns: minmax(140px, 220px) 1fr;
-			gap: 10px;
-			padding: 8px 10px;
-			background: #f5f9ff;
-			border: 1px solid #dde7f5;
-			border-radius: 8px;
-		}
+        /* RESPONSIVO PARA DISPOSITIVOS MÓVILES */
+        @media (max-width: 767px) {
+            body {
+                height: auto;
+                overflow-y: auto;
+            }
 
-		.clave {
-			font-weight: 700;
-		}
+            .app-header {
+                flex-direction: column;
+                height: auto;
+                padding: 12px;
+                gap: 12px;
+            }
 
-		.valor {
-			word-break: break-word;
-		}
+            .toolbar-menu {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
 
-		.acciones-form {
-			display: flex;
-			gap: 10px;
-			flex-wrap: wrap;
-		}
-
-		.productos {
-			display: grid;
-			gap: 8px;
-		}
-
-		.fila-producto {
-			display: grid;
-			grid-template-columns: 1fr auto;
-			gap: 12px;
-			padding: 8px 10px;
-			background: #eef6ff;
-			border: 1px solid #d9e8fb;
-			border-radius: 8px;
-		}
-
-		.nombre-producto {
-			font-weight: 600;
-		}
-
-		.precio-producto {
-			font-weight: 700;
-			text-align: right;
-			white-space: nowrap;
-		}
-
-		.fila-total {
-			background: #e3f3ef;
-			border-color: #bfdfd8;
-		}
-
-		@media (max-width: 640px) {
-			body::before {
-				background-size: auto 100dvh;
-				background-position: center top;
-			}
-
-			.contenedor {
-				padding: 18px;
-				border-radius: 12px;
-			}
-
-			.fila-dato {
-				grid-template-columns: 1fr;
-			}
-		}
-	</style>
+            .dropdown-clientes {
+                left: 50%;
+                transform: translateX(-50%);
+                width: 290px;
+            }
+        }
+    </style>
 </head>
 <body>
-	<main class="contenedor">
-		<h1>Administrador</h1>
 
-		<section class="grid">
-			<article class="tarjeta">
-				<h2 class="titulo-tarjeta">Productos</h2>
-				<a class="boton" href="listini.php">Lista precios</a>
-			</article>
+    <!-- BARRA SUPERIOR CON MENÚ Y BÚSQUEDA DESPLEGABLE -->
+    <header class="app-header">
+        <div class="app-title">
+            <span class="app-title-icon"></span>
+            Panel de Administración
+        </div>
+        <nav class="toolbar-menu">
+            <div class="menu-buscar-wrapper">
+                <button type="button" class="btn-tool" id="btn-top-buscar">🔍 Buscar cliente</button>
+                
+                <!-- DESPLEGABLE CON LISTA DE CLIENTES -->
+                <div class="dropdown-clientes" id="dropdown-clientes">
+                    <input type="text" id="filtro-cliente" class="campo-filtro-top" placeholder="Escriba para filtrar..." autocomplete="off">
+                    <div class="lista-clientes" id="lista-clientes">
+                        <?php if (!empty($clientesDisponibles)): ?>
+                            <?php foreach ($clientesDisponibles as $cliente): ?>
+                                <?php $textoCliente = trim($cliente['nombre'] ?? '') !== '' ? $cliente['nombre'] : $cliente['usuario']; ?>
+                                <a class="item-cliente" href="ver_cliente.php?usuario=<?php echo urlencode($cliente['usuario']); ?>" data-busqueda="<?php echo htmlspecialchars(strtolower($textoCliente . ' ' . $cliente['usuario']), ENT_QUOTES, 'UTF-8'); ?>">
+                                    <span class="nombre-cliente"><?php echo htmlspecialchars($textoCliente, ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="usuario-cliente"><?php echo htmlspecialchars($cliente['usuario'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="sin-resultados">No hay clientes registrados</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
 
-			<article class="tarjeta">
-				<h2 class="titulo-tarjeta">Muestrario telas</h2>
-				<a class="boton" href="telas.php">Ir a telas</a>
-			</article>
+            <a class="btn-tool" href="listini.php">Lista precios</a>
+            <a class="btn-tool" href="telas.php">Muestrario telas</a>
+            <a class="btn-tool btn-tool-primary" href="agrega_cliente.php">+ Agregar cliente</a>
+        </nav>
+    </header>
 
-			<article class="tarjeta">
-				<h2 class="titulo-tarjeta">Buscar cliente</h2>
-				<form class="formulario" method="post" action="">
-					<div class="campo">
-						<label for="usuario">Usuario</label>
-						<input type="text" id="usuario" name="usuario" value="<?php echo htmlspecialchars($usuarioBuscado, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Ingrese el usuario" required autocomplete="off">
+    <!-- ÁREA PRINCIPAL -->
+    <main class="app-workspace">
+        <!-- ÁREA DE TRABAJO LIMPIA -->
+    </main>
 
-						<?php if (!empty($clientesDisponibles)): ?>
-							<div class="lista-clientes" id="lista-clientes">
-								<?php foreach ($clientesDisponibles as $cliente): ?>
-									<?php $textoCliente = trim($cliente['nombre'] ?? '') !== '' ? $cliente['nombre'] : $cliente['usuario']; ?>
-									<a class="item-cliente" href="ver_cliente.php?usuario=<?php echo urlencode($cliente['usuario']); ?>">
-										<span class="nombre-cliente"><?php echo htmlspecialchars($textoCliente, ENT_QUOTES, 'UTF-8'); ?></span>
-										<span class="usuario-cliente"><?php echo htmlspecialchars($cliente['usuario'], ENT_QUOTES, 'UTF-8'); ?></span>
-									</a>
-								<?php endforeach; ?>
-							</div>
-						<?php endif; ?>
-					</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const btnBuscar = document.getElementById('btn-top-buscar');
+            const dropdown = document.getElementById('dropdown-clientes');
+            const filtro = document.getElementById('filtro-cliente');
+            const items = dropdown ? dropdown.querySelectorAll('.item-cliente') : [];
 
-					<div class="acciones-form">
-						<button class="boton boton-form" type="submit">Buscar cliente</button>
-					</div>
-				</form>
+            if (!btnBuscar || !dropdown) {
+                return;
+            }
 
-				<?php if ($mensaje !== ''): ?>
-					<p class="mensaje"><?php echo htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8'); ?></p>
-				<?php endif; ?>
-			</article>
+            // Alternar la visibilidad de la lista de clientes
+            btnBuscar.addEventListener('click', function (e) {
+                e.stopPropagation();
+                dropdown.classList.toggle('activo');
+                if (dropdown.classList.contains('activo') && filtro) {
+                    filtro.focus();
+                }
+            });
 
-			<article class="tarjeta">
-				<h2 class="titulo-tarjeta">Agregar cliente</h2>
-				<a class="boton" href="agrega_cliente.php">Agregar cliente</a>
-			</article>
-		</section>
-	</main>
+            // Evitar que al hacer clic dentro del desplegable se cierre
+            dropdown.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
 
-	<script>
-		document.addEventListener('DOMContentLoaded', function () {
-			const input = document.getElementById('usuario');
-			const lista = document.getElementById('lista-clientes');
+            // Filtrado de clientes en tiempo real
+            if (filtro) {
+                filtro.addEventListener('input', function () {
+                    const valor = filtro.value.trim().toLowerCase();
+                    items.forEach(function (item) {
+                        const textoBusqueda = item.getAttribute('data-busqueda') || '';
+                        if (valor === '' || textoBusqueda.includes(valor)) {
+                            item.style.display = 'flex';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                });
+            }
 
-			if (!input || !lista) {
-				return;
-			}
-
-			const mostrarLista = function () {
-				lista.style.display = 'block';
-			};
-
-			const ocultarLista = function () {
-				lista.style.display = 'none';
-			};
-
-			input.addEventListener('focus', mostrarLista);
-			input.addEventListener('click', mostrarLista);
-			input.addEventListener('input', mostrarLista);
-
-			document.addEventListener('click', function (event) {
-				if (!input.contains(event.target) && !lista.contains(event.target)) {
-					ocultarLista();
-				}
-			});
-		});
-	</script>
+            // Cerrar el desplegable si se hace clic fuera
+            document.addEventListener('click', function () {
+                dropdown.classList.remove('activo');
+            });
+        });
+    </script>
 </body>
 </html>

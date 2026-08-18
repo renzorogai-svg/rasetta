@@ -1,6 +1,6 @@
 <?php
 /*
-13-08-2026  desde PC
+18-08-2026  desde LapTop
 Archivo: seleccion_producto.php
 Descripción: Página para seleccionar productos y telas para un pedido de un cliente.
 */
@@ -427,6 +427,16 @@ if ($resultadoTelas) {
 			color: var(--muted);
 		}
 
+		.titulo-seccion-productos {
+			margin: 22px 0 10px;
+			padding: 12px 16px;
+			border-left: 4px solid #0f766e;
+			background: #f0fdfa;
+			color: #115e59;
+			font-size: 1.2rem;
+			font-weight: 700;
+		}
+
 		.datos-cliente {
 			margin-bottom: 18px;
 			padding: 16px;
@@ -524,6 +534,7 @@ if ($resultadoTelas) {
 
 		.acordeon-flecha {
 			font-size: 0.85rem;
+			transform: rotate(0deg);
 			transition: transform 0.2s ease;
 			flex: 0 0 auto;
 		}
@@ -539,7 +550,7 @@ if ($resultadoTelas) {
 			border-top: 1px solid var(--borde);
 		}
 
-		.bloque-tabla.abierta .tabla-wrapper {
+		.bloque-tabla.abierta > .tabla-wrapper {
 			display: block;
 		}
 
@@ -826,6 +837,104 @@ if ($resultadoTelas) {
 			</form>
 		</section>
 
+		<section class="bloque-tabla abierta">
+			<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="true">
+				<strong>Fabric types (Telas)</strong>
+				<span class="acordeon-flecha">▼</span>
+			</div>
+			<?php if (!empty($datosTelasPorMuestrario)): ?>
+				<div class="tabla-wrapper">
+					<?php foreach ($datosTelasPorMuestrario as $nombreMuestrario => $filasMuestrario): ?>
+						<section class="bloque-tabla">
+							<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
+								<span><?php echo htmlspecialchars('Muestrario: ' . $nombreMuestrario, ENT_QUOTES, 'UTF-8'); ?></span>
+								<span class="acordeon-flecha">▼</span>
+							</div>
+							<div class="tabla-wrapper">
+								<table>
+									<thead>
+										<tr>
+											<th>Articulo</th>
+											<th>Muestrario</th>
+											<th>Composicion</th>
+											<th>Peso</th>
+											<th>Rango</th>
+											<th>Pagina</th>
+											<th>Foto</th>
+											<th class="col-seleccion">Agregar</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach ($filasMuestrario as $filaTela): ?>
+											<?php
+												$articuloTela = trim((string) ($filaTela['articulo'] ?? 'Sin articulo'));
+												$muestrarioTela = trim((string) ($filaTela['muestrario'] ?? '-'));
+												$composicionTela = trim((string) ($filaTela['composicion'] ?? '-'));
+												$pesoTela = trim((string) ($filaTela['pero'] ?? '-'));
+												$rangoTela = trim((string) ($filaTela['rango'] ?? '-'));
+												$paginaTela = trim((string) ($filaTela['pagina'] ?? '-'));
+												$textoTela = 'Tela | Articulo: ' . $articuloTela . ' | Muestrario: ' . $muestrarioTela . ' | Composicion: ' . $composicionTela . ' | Peso: ' . $pesoTela . ' | Rango: ' . $rangoTela . ' | Pagina: ' . $paginaTela;
+												$fotoValor = trim((string) ($filaTela['foto'] ?? ''));
+												$rutaFoto = '';
+
+												if ($fotoValor !== '') {
+													$candidatos = [];
+													if (pathinfo($fotoValor, PATHINFO_EXTENSION) !== '') {
+														$candidatos[] = 'fotos/' . $fotoValor;
+													} else {
+														$candidatos[] = 'fotos/' . $fotoValor . '.jpeg';
+														$candidatos[] = 'fotos/' . $fotoValor . '.jpg';
+														$candidatos[] = 'fotos/' . $fotoValor . '.png';
+													}
+
+													foreach ($candidatos as $candidato) {
+														if (file_exists(__DIR__ . '/' . $candidato)) {
+															$rutaFoto = $candidato;
+															break;
+														}
+													}
+												}
+											?>
+											<tr>
+												<td><?php echo htmlspecialchars($articuloTela, ENT_QUOTES, 'UTF-8'); ?></td>
+												<td><?php echo htmlspecialchars($muestrarioTela, ENT_QUOTES, 'UTF-8'); ?></td>
+												<td><?php echo htmlspecialchars($composicionTela, ENT_QUOTES, 'UTF-8'); ?></td>
+												<td><?php echo htmlspecialchars($pesoTela, ENT_QUOTES, 'UTF-8'); ?></td>
+												<td><?php echo htmlspecialchars($rangoTela, ENT_QUOTES, 'UTF-8'); ?></td>
+												<td><?php echo htmlspecialchars($paginaTela, ENT_QUOTES, 'UTF-8'); ?></td>
+												<td>
+													<?php if ($rutaFoto !== ''): ?>
+														<img class="mini-foto-tela" src="<?php echo htmlspecialchars($rutaFoto, ENT_QUOTES, 'UTF-8'); ?>" alt="Foto de tela">
+													<?php endif; ?>
+												</td>
+												<td class="cell-check">
+													<?php $estaSeleccionado = producto_marcado_en_pedido($textoTela, $productosSeleccionadosMapa, $productosPedidoActual); ?>
+													<input
+														type="checkbox"
+														class="check-producto"
+														data-tipo="tela"
+														data-rango="<?php echo htmlspecialchars($rangoTela, ENT_QUOTES, 'UTF-8'); ?>"
+														data-item="<?php echo htmlspecialchars($textoTela, ENT_QUOTES, 'UTF-8'); ?>"
+														data-producto="<?php echo htmlspecialchars($textoTela, ENT_QUOTES, 'UTF-8'); ?>"
+														data-precio="0"
+														<?php echo $estaSeleccionado ? 'checked' : ''; ?>
+													>
+												</td>
+											</tr>
+										<?php endforeach; ?>
+									</tbody>
+								</table>
+							</div>
+						</section>
+					<?php endforeach; ?>
+				</div>
+			<?php else: ?>
+				<p class="sin-datos">No hay registros en la tabla telas.</p>
+			<?php endif; ?>
+		</section>
+
+		<h2 class="titulo-seccion-productos">Daywear (ropa de dia)</h2>
+
 		<?php foreach ($productosObjetivo as $producto): ?>
 			<section class="bloque-tabla">
 				<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
@@ -865,7 +974,7 @@ if ($resultadoTelas) {
 										$seleccionadoDosBotones = producto_marcado_en_pedido($textoProductoDosBotones, $productosSeleccionadosMapa, $productosPedidoActual) || producto_marcado_por_prefijo($prefijoProducto . ' | Dos botones: ', $productosPedidoActual);
 										$seleccionadoEspecial = producto_marcado_en_pedido($textoProductoEspecial, $productosSeleccionadosMapa, $productosPedidoActual) || producto_marcado_por_prefijo($prefijoProducto . ' | Especial: ', $productosPedidoActual);
 									?>
-									<tr>
+									<tr class="fila-producto-rango" data-rango="<?php echo $rangoProducto; ?>">
 										<td><?php echo $rangoProducto; ?></td>
 										<td class="cell-check">
 											<label class="precio-opcion">
@@ -873,6 +982,8 @@ if ($resultadoTelas) {
 											<input
 												type="checkbox"
 												class="check-producto"
+												data-tipo="producto"
+												data-rango="<?php echo $rangoProducto; ?>"
 												data-grupo-fila="<?php echo htmlspecialchars($grupoFilaProducto, ENT_QUOTES, 'UTF-8'); ?>"
 												data-item="<?php echo htmlspecialchars($textoProductoUnBotonMostrar, ENT_QUOTES, 'UTF-8'); ?>"
 												data-producto="<?php echo htmlspecialchars($textoProductoUnBoton, ENT_QUOTES, 'UTF-8'); ?>"
@@ -887,6 +998,8 @@ if ($resultadoTelas) {
 											<input
 												type="checkbox"
 												class="check-producto"
+												data-tipo="producto"
+												data-rango="<?php echo $rangoProducto; ?>"
 												data-grupo-fila="<?php echo htmlspecialchars($grupoFilaProducto, ENT_QUOTES, 'UTF-8'); ?>"
 												data-item="<?php echo htmlspecialchars($textoProductoDosBotonesMostrar, ENT_QUOTES, 'UTF-8'); ?>"
 												data-producto="<?php echo htmlspecialchars($textoProductoDosBotones, ENT_QUOTES, 'UTF-8'); ?>"
@@ -901,6 +1014,8 @@ if ($resultadoTelas) {
 											<input
 												type="checkbox"
 												class="check-producto"
+												data-tipo="producto"
+												data-rango="<?php echo $rangoProducto; ?>"
 												data-grupo-fila="<?php echo htmlspecialchars($grupoFilaProducto, ENT_QUOTES, 'UTF-8'); ?>"
 												data-item="<?php echo htmlspecialchars($textoProductoEspecialMostrar, ENT_QUOTES, 'UTF-8'); ?>"
 												data-producto="<?php echo htmlspecialchars($textoProductoEspecial, ENT_QUOTES, 'UTF-8'); ?>"
@@ -947,7 +1062,7 @@ if ($resultadoTelas) {
 										$textoProductoUnPrecio = $productoUnPrecio['titulo'] . ' | Rango: ' . (int) $filaUnPrecio['rango'] . ' | Precio: ' . $precioUnico;
 										$textoProductoUnPrecioMostrar = $productoUnPrecio['titulo'] . ' | Rango: ' . (int) $filaUnPrecio['rango'] . ' | Precio: ' . $precioUnicoMostrar;
 									?>
-									<tr>
+									<tr class="fila-producto-rango" data-rango="<?php echo (int) $filaUnPrecio['rango']; ?>">
 										<td><?php echo (int) $filaUnPrecio['rango']; ?></td>
 										<td><?php echo $precioUnicoMostrar; ?></td>
 										<td class="cell-check">
@@ -955,6 +1070,8 @@ if ($resultadoTelas) {
 											<input
 												type="checkbox"
 												class="check-producto"
+												data-tipo="producto"
+												data-rango="<?php echo (int) $filaUnPrecio['rango']; ?>"
 												data-item="<?php echo htmlspecialchars($textoProductoUnPrecioMostrar, ENT_QUOTES, 'UTF-8'); ?>"
 												data-producto="<?php echo htmlspecialchars($textoProductoUnPrecio, ENT_QUOTES, 'UTF-8'); ?>"
 												data-precio="<?php echo $precioUnico; ?>"
@@ -1010,7 +1127,7 @@ if ($resultadoTelas) {
 											$seleccionadoCategoria2 = producto_marcado_en_pedido($textoSobretodoCategoria2, $productosSeleccionadosMapa, $productosPedidoActual) || producto_marcado_por_prefijo($prefijoSobretodo . ' | Categoria 2: ', $productosPedidoActual);
 											$seleccionadoCategoria3 = producto_marcado_en_pedido($textoSobretodoCategoria3, $productosSeleccionadosMapa, $productosPedidoActual) || producto_marcado_por_prefijo($prefijoSobretodo . ' | Categoria 3: ', $productosPedidoActual);
 										?>
-										<tr>
+										<tr class="fila-producto-rango" data-rango="<?php echo $rangoSobretodo; ?>">
 											<td><?php echo $rangoSobretodo; ?></td>
 											<td class="cell-check">
 												<label class="precio-opcion">
@@ -1018,6 +1135,8 @@ if ($resultadoTelas) {
 												<input
 													type="checkbox"
 													class="check-producto"
+														data-tipo="producto"
+														data-rango="<?php echo $rangoSobretodo; ?>"
 													data-grupo-fila="<?php echo htmlspecialchars($grupoFilaSobretodo, ENT_QUOTES, 'UTF-8'); ?>"
 													data-item="<?php echo htmlspecialchars($textoSobretodoCategoria1Mostrar, ENT_QUOTES, 'UTF-8'); ?>"
 													data-producto="<?php echo htmlspecialchars($textoSobretodoCategoria1, ENT_QUOTES, 'UTF-8'); ?>"
@@ -1032,6 +1151,8 @@ if ($resultadoTelas) {
 												<input
 													type="checkbox"
 													class="check-producto"
+														data-tipo="producto"
+														data-rango="<?php echo $rangoSobretodo; ?>"
 													data-grupo-fila="<?php echo htmlspecialchars($grupoFilaSobretodo, ENT_QUOTES, 'UTF-8'); ?>"
 													data-item="<?php echo htmlspecialchars($textoSobretodoCategoria2Mostrar, ENT_QUOTES, 'UTF-8'); ?>"
 													data-producto="<?php echo htmlspecialchars($textoSobretodoCategoria2, ENT_QUOTES, 'UTF-8'); ?>"
@@ -1046,6 +1167,8 @@ if ($resultadoTelas) {
 												<input
 													type="checkbox"
 													class="check-producto"
+														data-tipo="producto"
+														data-rango="<?php echo $rangoSobretodo; ?>"
 													data-grupo-fila="<?php echo htmlspecialchars($grupoFilaSobretodo, ENT_QUOTES, 'UTF-8'); ?>"
 													data-item="<?php echo htmlspecialchars($textoSobretodoCategoria3Mostrar, ENT_QUOTES, 'UTF-8'); ?>"
 													data-producto="<?php echo htmlspecialchars($textoSobretodoCategoria3, ENT_QUOTES, 'UTF-8'); ?>"
@@ -1123,6 +1246,7 @@ if ($resultadoTelas) {
 													<input
 														type="checkbox"
 														class="check-producto"
+														data-tipo="producto"
 														data-item="<?php echo htmlspecialchars($textoAccesorio, ENT_QUOTES, 'UTF-8'); ?>"
 														data-producto="<?php echo htmlspecialchars($textoAccesorio, ENT_QUOTES, 'UTF-8'); ?>"
 														data-precio="<?php echo $precioAccesorio; ?>"
@@ -1146,99 +1270,6 @@ if ($resultadoTelas) {
 			<?php endif; ?>
 		<?php endforeach; ?>
 
-		<section class="bloque-tabla abierta">
-			<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="true">
-				<span>Fabric types (Telas)</span>
-				<span class="acordeon-flecha">▼</span>
-			</div>
-			<?php if (!empty($datosTelasPorMuestrario)): ?>
-				<div class="tabla-wrapper">
-					<?php foreach ($datosTelasPorMuestrario as $nombreMuestrario => $filasMuestrario): ?>
-						<section class="bloque-tabla abierta">
-							<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="true">
-								<span><?php echo htmlspecialchars('Muestrario: ' . $nombreMuestrario, ENT_QUOTES, 'UTF-8'); ?></span>
-								<span class="acordeon-flecha">▼</span>
-							</div>
-							<div class="tabla-wrapper">
-								<table>
-									<thead>
-										<tr>
-											<th>Articulo</th>
-											<th>Muestrario</th>
-											<th>Composicion</th>
-											<th>Peso</th>
-											<th>Rango</th>
-											<th>Pagina</th>
-											<th>Foto</th>
-											<th class="col-seleccion">Agregar</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach ($filasMuestrario as $filaTela): ?>
-											<?php
-												$articuloTela = trim((string) ($filaTela['articulo'] ?? 'Sin articulo'));
-												$muestrarioTela = trim((string) ($filaTela['muestrario'] ?? '-'));
-												$composicionTela = trim((string) ($filaTela['composicion'] ?? '-'));
-												$pesoTela = trim((string) ($filaTela['pero'] ?? '-'));
-												$rangoTela = trim((string) ($filaTela['rango'] ?? '-'));
-												$paginaTela = trim((string) ($filaTela['pagina'] ?? '-'));
-												$textoTela = 'Tela | Articulo: ' . $articuloTela . ' | Muestrario: ' . $muestrarioTela . ' | Composicion: ' . $composicionTela . ' | Peso: ' . $pesoTela . ' | Rango: ' . $rangoTela . ' | Pagina: ' . $paginaTela;
-												$fotoValor = trim((string) ($filaTela['foto'] ?? ''));
-												$rutaFoto = '';
-
-												if ($fotoValor !== '') {
-													$candidatos = [];
-													if (pathinfo($fotoValor, PATHINFO_EXTENSION) !== '') {
-														$candidatos[] = 'fotos/' . $fotoValor;
-													} else {
-														$candidatos[] = 'fotos/' . $fotoValor . '.jpeg';
-														$candidatos[] = 'fotos/' . $fotoValor . '.jpg';
-														$candidatos[] = 'fotos/' . $fotoValor . '.png';
-													}
-
-													foreach ($candidatos as $candidato) {
-														if (file_exists(__DIR__ . '/' . $candidato)) {
-															$rutaFoto = $candidato;
-															break;
-														}
-													}
-												}
-											?>
-											<tr>
-												<td><?php echo htmlspecialchars($articuloTela, ENT_QUOTES, 'UTF-8'); ?></td>
-												<td><?php echo htmlspecialchars($muestrarioTela, ENT_QUOTES, 'UTF-8'); ?></td>
-												<td><?php echo htmlspecialchars($composicionTela, ENT_QUOTES, 'UTF-8'); ?></td>
-												<td><?php echo htmlspecialchars($pesoTela, ENT_QUOTES, 'UTF-8'); ?></td>
-												<td><?php echo htmlspecialchars($rangoTela, ENT_QUOTES, 'UTF-8'); ?></td>
-												<td><?php echo htmlspecialchars($paginaTela, ENT_QUOTES, 'UTF-8'); ?></td>
-												<td>
-													<?php if ($rutaFoto !== ''): ?>
-														<img class="mini-foto-tela" src="<?php echo htmlspecialchars($rutaFoto, ENT_QUOTES, 'UTF-8'); ?>" alt="Foto de tela">
-													<?php endif; ?>
-												</td>
-												<td class="cell-check">
-													<?php $estaSeleccionado = producto_marcado_en_pedido($textoTela, $productosSeleccionadosMapa, $productosPedidoActual); ?>
-													<input
-														type="checkbox"
-														class="check-producto"
-														data-item="<?php echo htmlspecialchars($textoTela, ENT_QUOTES, 'UTF-8'); ?>"
-														data-producto="<?php echo htmlspecialchars($textoTela, ENT_QUOTES, 'UTF-8'); ?>"
-														data-precio="0"
-														<?php echo $estaSeleccionado ? 'checked' : ''; ?>
-													>
-												</td>
-											</tr>
-										<?php endforeach; ?>
-									</tbody>
-								</table>
-							</div>
-						</section>
-					<?php endforeach; ?>
-				</div>
-			<?php else: ?>
-				<p class="sin-datos">No hay registros en la tabla telas.</p>
-			<?php endif; ?>
-		</section>
 	</main>
 
 	<div id="modalImagenTela" class="modal-imagen" aria-hidden="true">
@@ -1337,6 +1368,37 @@ if ($resultadoTelas) {
 			});
 		});
 
+		var actualizarProductosPorRango = function () {
+			var rangosTelasSeleccionadas = [];
+
+			document.querySelectorAll('.check-producto[data-tipo="tela"]:checked').forEach(function (tela) {
+				var rangoTela = tela.getAttribute('data-rango') || '';
+				if (rangoTela !== '' && rangosTelasSeleccionadas.indexOf(rangoTela) === -1) {
+					rangosTelasSeleccionadas.push(rangoTela);
+				}
+			});
+
+			document.querySelectorAll('.fila-producto-rango').forEach(function (fila) {
+				var rangoProducto = fila.getAttribute('data-rango') || '';
+				var mostrarFila = rangosTelasSeleccionadas.length === 0 || rangosTelasSeleccionadas.indexOf(rangoProducto) !== -1;
+
+				fila.style.display = mostrarFila ? '' : 'none';
+			});
+
+			document.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
+				var filaProducto = producto.closest('.fila-producto-rango');
+				var rangoProducto = filaProducto ? filaProducto.getAttribute('data-rango') || '' : '';
+				var rangoPermitido = filaProducto === null || rangosTelasSeleccionadas.indexOf(rangoProducto) !== -1;
+				var mostrarCheckbox = rangosTelasSeleccionadas.length > 0 && rangoPermitido;
+
+				producto.style.display = mostrarCheckbox ? '' : 'none';
+				producto.disabled = !mostrarCheckbox;
+				if (!mostrarCheckbox && filaProducto && !rangoPermitido) {
+					producto.checked = false;
+				}
+			});
+		};
+
 		document.querySelectorAll('.check-producto').forEach(function (check) {
 			check.addEventListener('change', function () {
 				var grupoFila = check.getAttribute('data-grupo-fila') || '';
@@ -1349,6 +1411,7 @@ if ($resultadoTelas) {
 					});
 				}
 
+				actualizarProductosPorRango();
 				actualizarListaPedido();
 			});
 		});
@@ -1401,6 +1464,7 @@ if ($resultadoTelas) {
 			}
 		});
 
+		actualizarProductosPorRango();
 		actualizarListaPedido();
 	</script>
 </body>
