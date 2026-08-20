@@ -1,5 +1,5 @@
 <?php
-/* 17-08-2026  desde laptop
+/* 20-08-2026  desde laptop
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -20,6 +20,15 @@ $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (stri
 function formatear_precio_mostrar($precio)
 {
     return number_format((float) $precio, 0, ',', '.');
+}
+
+function obtener_rango_producto($producto)
+{
+    if (preg_match('/\|\s*Rango:\s*([^|]+)/i', (string) $producto, $coincidencias)) {
+        return trim($coincidencias[1]);
+    }
+
+    return 'sin-rango';
 }
 
 // Procesar eliminación de pedido individual
@@ -138,7 +147,9 @@ if ($usuarioBuscado === '') {
 
                 $pedidosCliente[$clavePedido]['productos'][] = [
                     'producto' => (string) ($fila['producto'] ?? ''),
-                    'precio' => (string) ($fila['precio'] ?? '')
+                    'precio' => (string) ($fila['precio'] ?? ''),
+                    'rango' => obtener_rango_producto($fila['producto'] ?? ''),
+                    'tipo' => stripos((string) ($fila['producto'] ?? ''), 'Tela |') === 0 ? 'tela' : 'producto'
                 ];
             }
 
@@ -346,6 +357,18 @@ if (!empty($productosPedido)) {
             gap: 8px;
         }
 
+        .encabezado-rango {
+            margin-top: 8px;
+            padding: 6px 2px;
+            border-bottom: 1px solid #cbd5e1;
+            color: var(--acento);
+            font-weight: 700;
+        }
+
+        .encabezado-rango:first-child {
+            margin-top: 0;
+        }
+
         .fila-producto {
             display: grid;
             grid-template-columns: 1fr auto;
@@ -473,15 +496,43 @@ if (!empty($productosPedido)) {
 
                 <?php if (!empty($productosPedido)): ?>
                     <div class="productos">
-                        <?php foreach ($productosPedido as $item): ?>
-                            <?php
-                                $precioProducto = $item['precio'] ?? '';
-                                $precioProductoMostrar = is_numeric($precioProducto) ? formatear_precio_mostrar($precioProducto) : (string) $precioProducto;
-                            ?>
-                            <div class="fila-producto">
-                                <div class="nombre-producto"><?php echo htmlspecialchars((string) ($item['producto'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-                                <div class="precio-producto"><?php echo htmlspecialchars($precioProductoMostrar, ENT_QUOTES, 'UTF-8'); ?></div>
+                        <?php
+                            $productosPorRango = [];
+                            $ordenRangos = [];
+
+                            foreach ($productosPedido as $item) {
+                                $rangoItem = (string) ($item['rango'] ?? 'sin-rango');
+                                if (!isset($productosPorRango[$rangoItem])) {
+                                    $productosPorRango[$rangoItem] = [
+                                        'telas' => [],
+                                        'productos' => []
+                                    ];
+                                    $ordenRangos[] = $rangoItem;
+                                }
+
+                                $tipoItem = ($item['tipo'] ?? 'producto') === 'tela' ? 'telas' : 'productos';
+                                $productosPorRango[$rangoItem][$tipoItem][] = $item;
+                            }
+
+                            foreach ($ordenRangos as $rangoItem):
+                                $itemsDelRango = array_merge(
+                                    $productosPorRango[$rangoItem]['telas'],
+                                    $productosPorRango[$rangoItem]['productos']
+                                );
+                        ?>
+                            <div class="encabezado-rango">
+                                <?php echo htmlspecialchars($rangoItem === 'sin-rango' ? 'Sin rango' : 'Rango ' . $rangoItem, ENT_QUOTES, 'UTF-8'); ?>
                             </div>
+                            <?php foreach ($itemsDelRango as $item): ?>
+                                <?php
+                                    $precioProducto = $item['precio'] ?? '';
+                                    $precioProductoMostrar = is_numeric($precioProducto) ? formatear_precio_mostrar($precioProducto) : (string) $precioProducto;
+                                ?>
+                                <div class="fila-producto">
+                                    <div class="nombre-producto"><?php echo htmlspecialchars((string) ($item['producto'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <div class="precio-producto"><?php echo htmlspecialchars($precioProductoMostrar, ENT_QUOTES, 'UTF-8'); ?></div>
+                                </div>
+                            <?php endforeach; ?>
                         <?php endforeach; ?>
                         <div class="fila-producto fila-total">
                             <div class="nombre-producto">Total</div>

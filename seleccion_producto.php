@@ -1,6 +1,6 @@
 <?php
 /*
-18-08-2026  desde LapTop
+20-08-2026  desde LapTop
 Archivo: seleccion_producto.php
 Descripción: Página para seleccionar productos y telas para un pedido de un cliente.
 */
@@ -633,6 +633,19 @@ if ($resultadoTelas) {
 
 		#listaPedido li {
 			margin: 6px 0;
+		}
+
+		#listaPedido li.encabezado-rango {
+			margin: 14px 0 6px;
+			padding-bottom: 4px;
+			border-bottom: 1px solid #cbd5e1;
+			list-style: none;
+			font-weight: 700;
+			color: #0f766e;
+		}
+
+		#listaPedido li.encabezado-rango:first-child {
+			margin-top: 0;
 		}
 
 		.total-pedido {
@@ -1289,6 +1302,7 @@ if ($resultadoTelas) {
 		var modalImagenTela = document.getElementById('modalImagenTela');
 		var imagenTelaAmpliada = document.getElementById('imagenTelaAmpliada');
 		var cerrarModalImagenTela = document.getElementById('cerrarModalImagenTela');
+		var contadorOrdenSeleccion = 0;
 
 		var formatearPrecioMostrar = function (valor) {
 			return new Intl.NumberFormat('es-ES', {
@@ -1303,31 +1317,87 @@ if ($resultadoTelas) {
 			}
 
 			listaPedido.innerHTML = '';
-			var checksSeleccionados = document.querySelectorAll('.check-producto:checked');
+			var checksSeleccionados = Array.prototype.slice.call(document.querySelectorAll('.check-producto:checked'));
 			var itemsGuardar = [];
 			var totalPedido = 0;
+			var gruposPorRango = {};
+			var ordenGrupos = [];
+
+			checksSeleccionados.sort(function (a, b) {
+				var ordenA = parseInt(a.getAttribute('data-orden-seleccion') || '0', 10);
+				var ordenB = parseInt(b.getAttribute('data-orden-seleccion') || '0', 10);
+
+				if (ordenA === ordenB) {
+					return 0;
+				}
+
+				return ordenA - ordenB;
+			});
 
 			checksSeleccionados.forEach(function (check) {
 				var itemTexto = check.getAttribute('data-item') || '';
 				var producto = check.getAttribute('data-producto') || '';
 				var precio = parseFloat(check.getAttribute('data-precio') || '0');
 				var precioValido = isNaN(precio) ? 0 : precio;
+				var tipo = check.getAttribute('data-tipo') || 'producto';
+				var rango = check.getAttribute('data-rango') || 'sin-rango';
 				if (itemTexto === '') {
 					return;
 				}
 
-				var li = document.createElement('li');
-				li.textContent = itemTexto;
-				listaPedido.appendChild(li);
+				if (!gruposPorRango[rango]) {
+					gruposPorRango[rango] = {
+						telas: [],
+						productos: []
+					};
+					ordenGrupos.push(rango);
+				}
 
-				if (producto !== '') {
-					itemsGuardar.push({
+				if (tipo === 'tela') {
+					gruposPorRango[rango].telas.push({
+						itemTexto: itemTexto,
+						producto: producto,
+						precio: precioValido
+					});
+				} else {
+					gruposPorRango[rango].productos.push({
+						itemTexto: itemTexto,
 						producto: producto,
 						precio: precioValido
 					});
 				}
+			});
 
-				totalPedido += precioValido;
+			ordenGrupos.forEach(function (rangoGrupo) {
+				var grupo = gruposPorRango[rangoGrupo];
+				var itemsGrupo = grupo.telas.concat(grupo.productos);
+				var encabezadoRango = document.createElement('li');
+				encabezadoRango.className = 'encabezado-rango';
+				encabezadoRango.textContent = rangoGrupo === 'sin-rango' ? 'Sin rango' : 'Rango ' + rangoGrupo;
+				listaPedido.appendChild(encabezadoRango);
+
+				itemsGrupo.forEach(function (item) {
+					var li = document.createElement('li');
+					var partesTexto = item.itemTexto.split(' | Precio: ');
+					if (partesTexto.length > 1) {
+						li.appendChild(document.createTextNode(partesTexto.shift() + ' | Precio: '));
+						var precioNegrita = document.createElement('strong');
+						precioNegrita.textContent = partesTexto.join(' | Precio: ');
+						li.appendChild(precioNegrita);
+					} else {
+						li.textContent = item.itemTexto;
+					}
+					listaPedido.appendChild(li);
+
+					if (item.producto !== '') {
+						itemsGuardar.push({
+							producto: item.producto,
+							precio: item.precio
+						});
+					}
+
+					totalPedido += item.precio;
+				});
 			});
 
 			if (totalPedidoValor) {
@@ -1345,6 +1415,26 @@ if ($resultadoTelas) {
 
 			if (mensajeListaVacia) {
 				mensajeListaVacia.style.display = checksSeleccionados.length > 0 ? 'none' : 'block';
+			}
+		};
+
+		var asignarOrdenInicialSeleccion = function () {
+			document.querySelectorAll('.check-producto:checked').forEach(function (check) {
+				contadorOrdenSeleccion += 1;
+				check.setAttribute('data-orden-seleccion', String(contadorOrdenSeleccion));
+			});
+		};
+
+		var registrarOrdenSeleccion = function (check) {
+			if (!check) {
+				return;
+			}
+
+			if (check.checked) {
+				contadorOrdenSeleccion += 1;
+				check.setAttribute('data-orden-seleccion', String(contadorOrdenSeleccion));
+			} else {
+				check.removeAttribute('data-orden-seleccion');
 			}
 		};
 
@@ -1395,18 +1485,21 @@ if ($resultadoTelas) {
 				producto.disabled = !mostrarCheckbox;
 				if (!mostrarCheckbox && filaProducto && !rangoPermitido) {
 					producto.checked = false;
+					producto.removeAttribute('data-orden-seleccion');
 				}
 			});
 		};
 
 		document.querySelectorAll('.check-producto').forEach(function (check) {
 			check.addEventListener('change', function () {
+				registrarOrdenSeleccion(check);
 				var grupoFila = check.getAttribute('data-grupo-fila') || '';
 
 				if (grupoFila !== '' && check.checked) {
 					document.querySelectorAll('.check-producto[data-grupo-fila="' + grupoFila.replace(/"/g, '\\"') + '"]').forEach(function (checkRelacionado) {
 						if (checkRelacionado !== check) {
 							checkRelacionado.checked = false;
+							checkRelacionado.removeAttribute('data-orden-seleccion');
 						}
 					});
 				}
@@ -1464,6 +1557,7 @@ if ($resultadoTelas) {
 			}
 		});
 
+		asignarOrdenInicialSeleccion();
 		actualizarProductosPorRango();
 		actualizarListaPedido();
 	</script>

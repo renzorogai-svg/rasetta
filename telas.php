@@ -1,12 +1,66 @@
 <?php
-/*  11-08-2026  
+/*  20-08-2026  desde Laptop
 */
 require_once 'conexion.php';
 
-$query = "SELECT Id, articulo, muestrario, composicion, pero, rango, pagina, foto FROM telas";
-$result = mysqli_query($conexion, $query);
-$rutaFondo = __DIR__ . '/fotos/fondo.jpg';
-$versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (string) time();
+$articuloBuscado = trim($_GET['articulo'] ?? '');
+$mensaje = '';
+$tipoMensaje = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_tela'])) {
+    $idTelaEliminar = trim($_POST['id_tela'] ?? '');
+    $articuloBuscado = trim($_POST['articulo'] ?? '');
+
+    if (!ctype_digit($idTelaEliminar) || (int) $idTelaEliminar <= 0) {
+        $mensaje = 'No se pudo eliminar: identificador de tela invalido.';
+        $tipoMensaje = 'error';
+    } else {
+        $idTelaEliminarInt = (int) $idTelaEliminar;
+        $stmtEliminarTela = mysqli_prepare($conexion, 'DELETE FROM telas WHERE Id = ?');
+
+        if ($stmtEliminarTela) {
+            mysqli_stmt_bind_param($stmtEliminarTela, 'i', $idTelaEliminarInt);
+            $eliminacionCorrecta = mysqli_stmt_execute($stmtEliminarTela);
+            $filasEliminadas = $eliminacionCorrecta ? mysqli_stmt_affected_rows($stmtEliminarTela) : 0;
+            mysqli_stmt_close($stmtEliminarTela);
+
+            if ($eliminacionCorrecta && $filasEliminadas > 0) {
+                $mensaje = 'Articulo eliminado correctamente.';
+                $tipoMensaje = 'ok';
+            } else {
+                $mensaje = 'No se pudo eliminar el articulo seleccionado.';
+                $tipoMensaje = 'error';
+            }
+        } else {
+            $mensaje = 'Ocurrio un error al preparar la eliminacion del articulo.';
+            $tipoMensaje = 'error';
+        }
+    }
+}
+
+$articulosDisponibles = [];
+$resultadoArticulos = mysqli_query($conexion, "SELECT DISTINCT articulo FROM telas WHERE articulo IS NOT NULL AND TRIM(articulo) <> '' ORDER BY articulo");
+
+if ($resultadoArticulos) {
+    while ($filaArticulo = mysqli_fetch_assoc($resultadoArticulos)) {
+        $articulosDisponibles[] = trim((string) ($filaArticulo['articulo'] ?? ''));
+    }
+    mysqli_free_result($resultadoArticulos);
+}
+
+if ($articuloBuscado !== '') {
+    $stmtTelas = mysqli_prepare($conexion, "SELECT Id, articulo, muestrario, composicion, pero, rango, pagina, foto FROM telas WHERE articulo LIKE CONCAT('%', ?, '%') ORDER BY articulo, muestrario, rango, Id");
+    if ($stmtTelas) {
+        mysqli_stmt_bind_param($stmtTelas, 's', $articuloBuscado);
+        mysqli_stmt_execute($stmtTelas);
+        $result = mysqli_stmt_get_result($stmtTelas);
+    } else {
+        $result = false;
+    }
+} else {
+    $result = mysqli_query($conexion, "SELECT Id, articulo, muestrario, composicion, pero, rango, pagina, foto FROM telas ORDER BY articulo, muestrario, rango, Id");
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -58,6 +112,97 @@ $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (stri
         }
         .barra-superior a:hover {
             background: #17495a;
+        }
+        .boton-buscar {
+            flex: 1 1 140px;
+            max-width: 170px;
+            padding: 10px 12px;
+            border: 0;
+            background: #1e5f74;
+            color: white;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .boton-buscar:hover {
+            background: #17495a;
+        }
+        .buscador-articulo {
+            display: none;
+            margin: 0 auto 20px;
+            padding: 14px;
+            border: 1px solid #d8e2e8;
+            border-radius: 10px;
+            background: #f7fafb;
+        }
+        .buscador-articulo.abierto {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: end;
+            gap: 10px;
+        }
+        .buscador-articulo label {
+            display: flex;
+            flex: 1 1 260px;
+            flex-direction: column;
+            gap: 6px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        .buscador-articulo input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #b9cbd4;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+        .boton-ejecutar-busqueda,
+        .limpiar-busqueda {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .boton-ejecutar-busqueda {
+            border: 0;
+            background: #1e5f74;
+            color: #ffffff;
+        }
+        .limpiar-busqueda {
+            border: 1px solid #b9cbd4;
+            background: #ffffff;
+            color: #2c3e50;
+        }
+        .mensaje {
+            margin: 0 0 18px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .mensaje.ok {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .mensaje.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .boton-eliminar {
+            padding: 5px 8px;
+            border: 0;
+            border-radius: 6px;
+            background: #b91c1c;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .boton-eliminar:hover,
+        .boton-eliminar:focus-visible {
+            background: #991b1b;
         }
         .presentacion {
             margin-bottom: 24px;
@@ -222,15 +367,26 @@ $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (stri
         <h1>Catálogo de Telas</h1>
         <div class="barra-superior">
             <a href="inicio.php">Volver a inicio</a>
-            <a href="#">Agregar artículo</a>
-            <a href="#">Borrar</a>
-            <a href="#">Editar</a>
-            <a href="importar_telas.php">Importar de Excel</a>
+            <button type="button" id="botonMostrarBusqueda" class="boton-buscar" aria-expanded="<?php echo $articuloBuscado !== '' ? 'true' : 'false'; ?>">Buscar</button>
+            <a href="agregar_tela.php">Agregar tela</a>
         </div>
-        <div class="presentacion">
-            <img src="fotos/fondo.jpg?v=<?= htmlspecialchars($versionFondo, ENT_QUOTES, 'UTF-8') ?>" alt="Presentación del catálogo">
-        </div>
-
+        <form id="buscadorArticulo" class="buscador-articulo<?php echo $articuloBuscado !== '' ? ' abierto' : ''; ?>" method="get" action="telas.php">
+            <label for="articulo">Artículo
+                <input type="search" id="articulo" name="articulo" value="<?= htmlspecialchars($articuloBuscado, ENT_QUOTES, 'UTF-8') ?>" list="articulosDisponibles" placeholder="Escriba o seleccione un artículo" autocomplete="off">
+                <datalist id="articulosDisponibles">
+                    <?php foreach ($articulosDisponibles as $articuloDisponible): ?>
+                        <option value="<?= htmlspecialchars($articuloDisponible, ENT_QUOTES, 'UTF-8') ?>"></option>
+                    <?php endforeach; ?>
+                </datalist>
+            </label>
+            <button type="submit" class="boton-ejecutar-busqueda">Buscar artículo</button>
+            <a class="limpiar-busqueda" href="telas.php">Limpiar</a>
+        </form>
+        <?php if ($mensaje !== ''): ?>
+            <p class="mensaje <?php echo htmlspecialchars($tipoMensaje, ENT_QUOTES, 'UTF-8'); ?>">
+                <?php echo htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8'); ?>
+            </p>
+        <?php endif; ?>
         <?php if ($result && mysqli_num_rows($result) > 0): ?>
             <div class="table-wrap">
                 <table>
@@ -239,10 +395,11 @@ $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (stri
                             <th>Artículo</th>
                             <th>Muestrario</th>
                             <th>Composición</th>
-                            <th>Pero</th>
+                            <th>Peso</th>
                             <th>Rango</th>
                             <th>Página</th>
                             <th>Foto</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -282,6 +439,13 @@ $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (stri
                                         <img class="mini-foto-tela" src="<?= htmlspecialchars($rutaFoto) ?>" alt="Foto de la tela">
                                     <?php endif; ?>
                                 </td>
+                                <td data-label="Acción">
+                                    <form method="post" action="telas.php" onsubmit="return confirm('¿Desea eliminar este artículo?');">
+                                        <input type="hidden" name="id_tela" value="<?= (int) ($fila['Id'] ?? 0) ?>">
+                                        <input type="hidden" name="articulo" value="<?= htmlspecialchars($articuloBuscado, ENT_QUOTES, 'UTF-8') ?>">
+                                        <button type="submit" name="eliminar_tela" class="boton-eliminar">Eliminar</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endwhile; ?>
                     </tbody>
@@ -302,9 +466,23 @@ $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (stri
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            var botonMostrarBusqueda = document.getElementById('botonMostrarBusqueda');
+            var buscadorArticulo = document.getElementById('buscadorArticulo');
+            var campoArticulo = document.getElementById('articulo');
             var modalImagenTela = document.getElementById('modalImagenTela');
             var imagenTelaAmpliada = document.getElementById('imagenTelaAmpliada');
             var cerrarModalImagenTela = document.getElementById('cerrarModalImagenTela');
+
+            if (botonMostrarBusqueda && buscadorArticulo) {
+                botonMostrarBusqueda.addEventListener('click', function () {
+                    var estaAbierto = buscadorArticulo.classList.toggle('abierto');
+                    botonMostrarBusqueda.setAttribute('aria-expanded', estaAbierto ? 'true' : 'false');
+
+                    if (estaAbierto && campoArticulo) {
+                        campoArticulo.focus();
+                    }
+                });
+            }
 
             var cerrarVisorImagen = function () {
                 if (!modalImagenTela || !imagenTelaAmpliada) {

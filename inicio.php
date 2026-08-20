@@ -1,5 +1,5 @@
 <?php
-/** 17-08-2026 desde laptop
+/** 18-08-2026 desde laptop
  * inicio.php
  *
  * Página de inicio del administrador.
