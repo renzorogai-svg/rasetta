@@ -1,5 +1,5 @@
 <?php
-/** 18-08-2026 desde laptop
+/** 20-08-2026 desde PC
  * inicio.php
  *
  * Página de inicio del administrador.
@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$stmtClientes = mysqli_prepare($conexion, "SELECT DISTINCT usuario, nombre FROM cliente WHERE TRIM(usuario) <> '' ORDER BY nombre ASC, usuario ASC");
+$stmtClientes = mysqli_prepare($conexion, "SELECT DISTINCT usuario, nombre, `ID cliente`, telefono, direccion, correo FROM cliente WHERE TRIM(usuario) <> '' ORDER BY nombre ASC, usuario ASC");
 
 if ($stmtClientes) {
     mysqli_stmt_execute($stmtClientes);
@@ -37,7 +37,11 @@ if ($stmtClientes) {
         while ($cliente = mysqli_fetch_assoc($resultadoClientes)) {
             $clientesDisponibles[] = [
                 'usuario' => (string) ($cliente['usuario'] ?? ''),
-                'nombre' => (string) ($cliente['nombre'] ?? '')
+                'nombre' => (string) ($cliente['nombre'] ?? ''),
+                'id_cliente' => trim((string) ($cliente['ID cliente'] ?? '')) ?: 'vacio',
+                'telefono' => trim((string) ($cliente['telefono'] ?? '')) ?: 'vacio',
+                'direccion' => trim((string) ($cliente['direccion'] ?? '')) ?: 'vacio',
+                'correo' => trim((string) ($cliente['correo'] ?? '')) ?: 'vacio'
             ];
         }
     }

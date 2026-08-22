@@ -1,3 +1,4 @@
+-- 20/08/2026 desde PC
 -- phpMyAdmin SQL Dump
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
@@ -29,8 +30,12 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `cliente` (
   `Id` int(11) NOT NULL,
+  `ID cliente` varchar(20) NOT NULL DEFAULT 'vacio',
   `nombre` varchar(40) NOT NULL,
   `usuario` varchar(30) NOT NULL,
+  `telefono` varchar(40) NOT NULL DEFAULT 'vacio',
+  `direccion` varchar(200) NOT NULL DEFAULT 'vacio',
+  `correo` varchar(150) NOT NULL DEFAULT 'vacio',
   `pedido` int(3) NOT NULL,
   `fecha` date NOT NULL,
   `producto` varchar(300) NOT NULL,

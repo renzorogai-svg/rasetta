@@ -1,6 +1,6 @@
 <?php
 /*
-20-08-2026  desde LapTop
+20-08-2026  desde PC
 Archivo: seleccion_producto.php
 Descripción: Página para seleccionar productos y telas para un pedido de un cliente.
 */
@@ -50,7 +50,7 @@ function formatear_precio_mostrar($precio)
 }
 
 if ($usuarioSeleccionado !== '') {
-	$stmtCliente = mysqli_prepare($conexion, 'SELECT nombre, usuario FROM cliente WHERE usuario = ? ORDER BY Id ASC LIMIT 1');
+	$stmtCliente = mysqli_prepare($conexion, 'SELECT `ID cliente`, nombre, usuario, telefono, direccion, correo FROM cliente WHERE usuario = ? ORDER BY Id ASC LIMIT 1');
 
 	if ($stmtCliente) {
 		mysqli_stmt_bind_param($stmtCliente, 's', $usuarioSeleccionado);
@@ -60,8 +60,12 @@ if ($usuarioSeleccionado !== '') {
 		if ($resultadoCliente && mysqli_num_rows($resultadoCliente) > 0) {
 			$filaCliente = mysqli_fetch_assoc($resultadoCliente);
 			$clienteSeleccionado = [
+				'id_cliente' => trim((string) ($filaCliente['ID cliente'] ?? '')) ?: 'vacio',
 				'nombre' => (string) ($filaCliente['nombre'] ?? ''),
-				'usuario' => (string) ($filaCliente['usuario'] ?? $usuarioSeleccionado)
+				'usuario' => (string) ($filaCliente['usuario'] ?? $usuarioSeleccionado),
+				'telefono' => trim((string) ($filaCliente['telefono'] ?? '')) ?: 'vacio',
+				'direccion' => trim((string) ($filaCliente['direccion'] ?? '')) ?: 'vacio',
+				'correo' => trim((string) ($filaCliente['correo'] ?? '')) ?: 'vacio'
 			];
 		}
 
@@ -163,6 +167,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_pedido'])) {
 		} else {
 			$nombreCliente = (string) ($clienteSeleccionado['nombre'] ?? '');
 			$usuarioCliente = (string) ($clienteSeleccionado['usuario'] ?? $usuarioSeleccionado);
+			$idCliente = (string) ($clienteSeleccionado['id_cliente'] ?? 'vacio');
+			$telefonoCliente = (string) ($clienteSeleccionado['telefono'] ?? 'vacio');
+			$direccionCliente = (string) ($clienteSeleccionado['direccion'] ?? 'vacio');
+			$correoCliente = (string) ($clienteSeleccionado['correo'] ?? 'vacio');
 			$pedidoNuevoGuardar = (int) $numeroPedidoNuevo;
 			$fechaPedido = date('Y-m-d');
 
@@ -181,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_pedido'])) {
 				}
 			}
 
-			$sqlInsert = 'INSERT INTO cliente (nombre, usuario, pedido, fecha, producto, precio) VALUES (?, ?, ?, ?, ?, ?)';
+			$sqlInsert = 'INSERT INTO cliente (`ID cliente`, nombre, usuario, telefono, direccion, correo, pedido, fecha, producto, precio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 			$stmtInsert = $guardadoOk ? mysqli_prepare($conexion, $sqlInsert) : false;
 
 			if ($guardadoOk && !$stmtInsert && !empty($itemsValidos)) {
@@ -201,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_pedido'])) {
 					$productoGuardar = $itemValido['producto'];
 					$precioGuardar = $itemValido['precio'];
 
-					mysqli_stmt_bind_param($stmtInsert, 'ssissi', $nombreCliente, $usuarioCliente, $pedidoNuevoGuardar, $fechaPedido, $productoGuardar, $precioGuardar);
+					mysqli_stmt_bind_param($stmtInsert, 'ssssssissi', $idCliente, $nombreCliente, $usuarioCliente, $telefonoCliente, $direccionCliente, $correoCliente, $pedidoNuevoGuardar, $fechaPedido, $productoGuardar, $precioGuardar);
 					if (!mysqli_stmt_execute($stmtInsert)) {
 						$guardadoOk = false;
 						break;
@@ -814,6 +822,22 @@ if ($resultadoTelas) {
 						<div class="clave">Usuario</div>
 						<div class="valor"><?php echo htmlspecialchars((string) ($clienteSeleccionado['usuario'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
 					</div>
+					<div class="item-dato">
+						<div class="clave">ID cliente</div>
+						<div class="valor"><?php echo htmlspecialchars((string) ($clienteSeleccionado['id_cliente'] ?? 'vacio'), ENT_QUOTES, 'UTF-8'); ?></div>
+					</div>
+					<div class="item-dato">
+						<div class="clave">Teléfono</div>
+						<div class="valor"><?php echo htmlspecialchars((string) ($clienteSeleccionado['telefono'] ?? 'vacio'), ENT_QUOTES, 'UTF-8'); ?></div>
+					</div>
+					<div class="item-dato">
+						<div class="clave">Dirección</div>
+						<div class="valor"><?php echo htmlspecialchars((string) ($clienteSeleccionado['direccion'] ?? 'vacio'), ENT_QUOTES, 'UTF-8'); ?></div>
+					</div>
+					<div class="item-dato">
+						<div class="clave">Correo</div>
+						<div class="valor"><?php echo htmlspecialchars((string) ($clienteSeleccionado['correo'] ?? 'vacio'), ENT_QUOTES, 'UTF-8'); ?></div>
+					</div>
 
 					<?php if ($numeroPedidoNuevo !== null): ?>
 						<div class="item-dato">
@@ -959,10 +983,15 @@ if ($resultadoTelas) {
 						<table>
 							<thead>
 								<tr>
-									<th>Rango</th>
-									<th>Un botón</th>
-									<th>Dos botones</th>
-									<th>Especial</th>
+									<th rowspan="2">Price range</th>
+									<th>Single Breasted</th>
+									<th>Double Breasted</th>
+									<th>Special</th>
+								</tr>
+								<tr>
+									<th>SRP</th>
+									<th>SRP</th>
+									<th>SRP</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -1062,8 +1091,8 @@ if ($resultadoTelas) {
 						<table>
 							<thead>
 								<tr>
-									<th>Rango</th>
-									<th>Precio</th>
+									<th>Price range</th>
+									<th>SRP</th>
 									<th class="col-seleccion">Agregar</th>
 								</tr>
 							</thead>
@@ -1212,8 +1241,9 @@ if ($resultadoTelas) {
 							<table>
 								<thead>
 									<tr>
-										<?php foreach ($columnasAccesorios as $columnaAccesorio): ?>
-											<th><?php echo htmlspecialchars($columnaAccesorio, ENT_QUOTES, 'UTF-8'); ?></th>
+										<?php foreach ($columnasAccesorios as $indiceColumnaAccesorio => $columnaAccesorio): ?>
+											<?php if (strtolower($columnaAccesorio) === 'id') continue; ?>
+											<th><?php echo $indiceColumnaAccesorio === 1 ? '' : ($indiceColumnaAccesorio === 2 ? 'SRP' : htmlspecialchars($columnaAccesorio, ENT_QUOTES, 'UTF-8')); ?></th>
 										<?php endforeach; ?>
 										<th class="col-seleccion">Agregar</th>
 									</tr>
@@ -1252,6 +1282,7 @@ if ($resultadoTelas) {
 											?>
 											<tr>
 												<?php foreach ($columnasAccesorios as $columnaAccesorio): ?>
+													<?php if (strtolower($columnaAccesorio) === 'id') continue; ?>
 													<td><?php echo htmlspecialchars((string) ($filaAccesorio[$columnaAccesorio] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
 												<?php endforeach; ?>
 												<td class="cell-check">
@@ -1270,7 +1301,7 @@ if ($resultadoTelas) {
 										<?php endforeach; ?>
 									<?php else: ?>
 										<tr>
-											<td colspan="<?php echo count($columnasAccesorios) + 1; ?>">No hay registros en la tabla accesorios.</td>
+											<td colspan="<?php echo count($columnasAccesorios); ?>">No hay registros en la tabla accesorios.</td>
 										</tr>
 									<?php endif; ?>
 								</tbody>

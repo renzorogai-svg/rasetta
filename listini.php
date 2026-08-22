@@ -1,6 +1,6 @@
 <?php 
 /*
-13-08-2026 desde PC
+20-08-2026 desde PC
 */
 require_once __DIR__ . '/conexion.php';
 
@@ -305,10 +305,15 @@ if ($resultadoColumnasAccesorios) {
 						<table>
 							<thead>
 								<tr>
-									<th>Rango</th>
-									<th>Un botón</th>
-									<th>Dos botones</th>
-									<th>Especial</th>
+									<th rowspan="2">Price range</th>
+									<th>Single Breasted</th>
+									<th>Double Breasted</th>
+									<th>Special</th>
+								</tr>
+								<tr>
+									<th>SRP</th>
+									<th>SRP</th>
+									<th>SRP</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -345,8 +350,8 @@ if ($resultadoColumnasAccesorios) {
 						<table>
 							<thead>
 								<tr>
-									<th>Rango</th>
-									<th>Precio</th>
+									<th>Price range</th>
+									<th>SRP</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -410,8 +415,9 @@ if ($resultadoColumnasAccesorios) {
 							<table>
 								<thead>
 									<tr>
-										<?php foreach ($columnasAccesorios as $columnaAccesorio): ?>
-											<th><?php echo htmlspecialchars($columnaAccesorio, ENT_QUOTES, 'UTF-8'); ?></th>
+										<?php foreach ($columnasAccesorios as $indiceColumnaAccesorio => $columnaAccesorio): ?>
+											<?php if (strtolower($columnaAccesorio) === 'id') continue; ?>
+											<th><?php echo $indiceColumnaAccesorio === 1 ? '' : ($indiceColumnaAccesorio === 2 ? 'SRP' : htmlspecialchars($columnaAccesorio, ENT_QUOTES, 'UTF-8')); ?></th>
 										<?php endforeach; ?>
 									</tr>
 								</thead>
@@ -420,13 +426,14 @@ if ($resultadoColumnasAccesorios) {
 										<?php foreach ($datosAccesorios as $filaAccesorio): ?>
 											<tr>
 												<?php foreach ($columnasAccesorios as $columnaAccesorio): ?>
+													<?php if (strtolower($columnaAccesorio) === 'id') continue; ?>
 													<td><?php echo htmlspecialchars((string) ($filaAccesorio[$columnaAccesorio] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
 												<?php endforeach; ?>
 											</tr>
 										<?php endforeach; ?>
 									<?php else: ?>
 										<tr>
-											<td colspan="<?php echo count($columnasAccesorios); ?>">No hay registros en la tabla accesorios.</td>
+											<td colspan="<?php echo count($columnasAccesorios) - 1; ?>">No hay registros en la tabla accesorios.</td>
 										</tr>
 									<?php endif; ?>
 								</tbody>

@@ -1,9 +1,14 @@
 <?php
-/* 20-08-2026  desde laptop
+/* 20-08-2026  desde PC
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
 require_once __DIR__ . '/conexion.php';
+require_once __DIR__ . '/vendor/autoload.php';
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Mpdf\Mpdf;
 
 $usuarioBuscado = trim($_GET['usuario'] ?? '');
 $pedidoSeleccionado = trim($_GET['pedido'] ?? '');
@@ -29,6 +34,15 @@ function obtener_rango_producto($producto)
     }
 
     return 'sin-rango';
+}
+
+function normalizar_nombre_archivo($texto)
+{
+    $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', (string) $texto);
+    $texto = strtolower($texto ?: 'cliente');
+    $texto = preg_replace('/[^a-z0-9]+/', '', $texto);
+
+    return $texto !== '' ? $texto : 'cliente';
 }
 
 // Procesar eliminación de pedido individual
@@ -132,6 +146,12 @@ if ($usuarioBuscado === '') {
 
         if ($resultado && mysqli_num_rows($resultado) > 0) {
             while ($fila = mysqli_fetch_assoc($resultado)) {
+                foreach (['ID cliente', 'telefono', 'direccion', 'correo'] as $columnaCliente) {
+                    if (trim((string) ($fila[$columnaCliente] ?? '')) === '') {
+                        $fila[$columnaCliente] = 'vacio';
+                    }
+                }
+
                 $clavePedido = (string) ($fila['pedido'] ?? '');
                 if ($clavePedido === '') {
                     $clavePedido = 'sin_pedido_' . (string) ($fila['Id'] ?? uniqid('', true));
@@ -180,6 +200,124 @@ if (!empty($productosPedido)) {
             $totalPedido += (float) $precio;
         }
     }
+}
+
+if (isset($_GET['exportar_excel']) && $_GET['exportar_excel'] === '1') {
+    if (!is_array($clienteMostrado) || !ctype_digit($pedidoSeleccionado) || (int) $pedidoSeleccionado <= 0) {
+        http_response_code(400);
+        exit('Seleccione un pedido valido para exportar.');
+    }
+
+    $hojaCalculo = new Spreadsheet();
+    $hoja = $hojaCalculo->getActiveSheet();
+    $hoja->setTitle('Pedido ' . $pedidoSeleccionado);
+
+    $hoja->fromArray([
+        ['Detalle de cliente', ''],
+        ['ID cliente', $clienteMostrado['ID cliente'] ?? 'vacio'],
+        ['Nombre', $clienteMostrado['nombre'] ?? ''],
+        ['Usuario', $clienteMostrado['usuario'] ?? ''],
+        ['Telefono', $clienteMostrado['telefono'] ?? 'vacio'],
+        ['Direccion', $clienteMostrado['direccion'] ?? 'vacio'],
+        ['Correo', $clienteMostrado['correo'] ?? 'vacio'],
+        ['Pedido', $pedidoSeleccionado],
+        [],
+        ['Producto', 'Precio']
+    ], null, 'A1');
+
+    $filaExcel = 11;
+    foreach ($productosPedido as $item) {
+        $precio = $item['precio'] ?? '';
+        $precioExcel = is_numeric($precio) ? (float) $precio : $precio;
+        $hoja->fromArray([[(string) ($item['producto'] ?? ''), $precioExcel]], null, 'A' . $filaExcel);
+        $filaExcel++;
+    }
+
+    $hoja->fromArray([['Total', $totalPedido]], null, 'A' . $filaExcel);
+    $hoja->getStyle('A1:B1')->getFont()->setBold(true)->setSize(14);
+    $hoja->mergeCells('A1:B1');
+    $hoja->getStyle('A1:B1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('0F766E');
+    $hoja->getStyle('A1:B1')->getFont()->getColor()->setARGB('FFFFFF');
+    $hoja->getStyle('A2:A8')->getFont()->setBold(true);
+    $hoja->getStyle('A10:B10')->getFont()->setBold(true);
+    $hoja->getStyle('A10:B10')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('D9EDE9');
+    $hoja->getStyle('A' . $filaExcel . ':B' . $filaExcel)->getFont()->setBold(true);
+    $hoja->getStyle('A1:B' . $filaExcel)->getAlignment()->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_TOP);
+    $hoja->getStyle('A10:B' . $filaExcel)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setARGB('B8C7C4');
+    $hoja->getStyle('A11:A' . $filaExcel)->getAlignment()->setWrapText(true);
+    $hoja->getColumnDimension('A')->setWidth(72);
+    $hoja->getColumnDimension('B')->setWidth(18);
+    $hoja->getStyle('B11:B' . $filaExcel)->getNumberFormat()->setFormatCode('#,##0');
+    $hoja->freezePane('A11');
+    $hoja->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
+    $hoja->getPageSetup()->setFitToWidth(1);
+    $hoja->getPageSetup()->setFitToHeight(0);
+    $hoja->setSelectedCell('A1');
+
+    $nombreCliente = normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado);
+    $nombreArchivo = $nombreCliente . '_' . (int) $pedidoSeleccionado . '.xlsx';
+
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="' . $nombreArchivo . '"');
+    header('Cache-Control: max-age=0');
+
+    $escritor = new Xlsx($hojaCalculo);
+    $escritor->save('php://output');
+    $hojaCalculo->disconnectWorksheets();
+    exit;
+}
+
+if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
+    if (!is_array($clienteMostrado) || !ctype_digit($pedidoSeleccionado) || (int) $pedidoSeleccionado <= 0) {
+        http_response_code(400);
+        exit('Seleccione un pedido valido para exportar.');
+    }
+
+    $escaparPdf = static function ($valor): string {
+        return htmlspecialchars((string) $valor, ENT_QUOTES, 'UTF-8');
+    };
+
+    $filasProductosPdf = '';
+    foreach ($productosPedido as $item) {
+        $precio = $item['precio'] ?? '';
+        $precioMostrar = is_numeric($precio) ? formatear_precio_mostrar($precio) : (string) $precio;
+        $filasProductosPdf .= '<tr><td>' . $escaparPdf($item['producto'] ?? '') . '</td><td class="precio">' . $escaparPdf($precioMostrar) . '</td></tr>';
+    }
+
+    $htmlPdf = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+        body { font-family: sans-serif; color: #1f2937; font-size: 10pt; }
+        h1 { color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 8px; }
+        h2 { font-size: 12pt; color: #0f766e; margin-top: 20px; }
+        .datos { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+        .datos td { border: 1px solid #d6dee8; padding: 6px 8px; }
+        .datos td:first-child { width: 25%; font-weight: bold; background: #eef6f4; }
+        .productos { width: 100%; border-collapse: collapse; }
+        .productos th { background: #0f766e; color: #fff; text-align: left; padding: 7px 8px; }
+        .productos td { border: 1px solid #d6dee8; padding: 7px 8px; vertical-align: top; }
+        .productos .precio { width: 18%; text-align: right; white-space: nowrap; }
+        .total td { font-weight: bold; background: #e3f3ef; }
+    </style></head><body>';
+    $htmlPdf .= '<h1>Detalle de cliente y pedido</h1><table class="datos">';
+    foreach ([
+        'ID cliente' => $clienteMostrado['ID cliente'] ?? 'vacio',
+        'Nombre' => $clienteMostrado['nombre'] ?? '',
+        'Usuario' => $clienteMostrado['usuario'] ?? '',
+        'Telefono' => $clienteMostrado['telefono'] ?? 'vacio',
+        'Direccion' => $clienteMostrado['direccion'] ?? 'vacio',
+        'Correo' => $clienteMostrado['correo'] ?? 'vacio',
+        'Pedido' => $pedidoSeleccionado
+    ] as $etiqueta => $valor) {
+        $htmlPdf .= '<tr><td>' . $escaparPdf($etiqueta) . '</td><td>' . $escaparPdf($valor) . '</td></tr>';
+    }
+    $htmlPdf .= '</table><h2>Productos</h2><table class="productos"><thead><tr><th>Producto</th><th class="precio">Precio</th></tr></thead><tbody>';
+    $htmlPdf .= $filasProductosPdf . '<tr class="total"><td>Total</td><td class="precio">' . $escaparPdf(formatear_precio_mostrar($totalPedido)) . '</td></tr></tbody></table></body></html>';
+
+    $pdf = new Mpdf(['format' => 'A4', 'orientation' => 'P', 'tempDir' => __DIR__ . '/vendor/mpdf/tmp']);
+    $pdf->SetTitle('Pedido ' . $pedidoSeleccionado);
+    $pdf->WriteHTML($htmlPdf);
+    $nombreCliente = normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado);
+    $pdf->Output($nombreCliente . '_' . (int) $pedidoSeleccionado . '.pdf', 'D');
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -453,6 +591,8 @@ if (!empty($productosPedido)) {
                     <a class="boton" href="seleccion_producto.php<?php echo $usuarioBuscado !== '' ? '?usuario=' . urlencode($usuarioBuscado) . '&pedido=nuevo' : ''; ?>">Agregar pedido</a>
                     <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
                         <a class="boton" href="seleccion_producto.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>">Modificar pedido</a>
+                        <a class="boton" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_excel=1">Guardar Excel</a>
+                        <a class="boton" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_pdf=1">Guardar PDF</a>
                     <?php endif; ?>
                     <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
                         <button class="boton boton-peligro" type="submit" form="formEliminarPedido" onclick="return confirm('Se eliminara todo el pedido seleccionado. Desea continuar?');">Eliminar pedido</button>

@@ -1,5 +1,5 @@
 <?php
-/* 18-08-2026  desde laptop
+/* 20-08-2026  desde PC
     Archivo: agregar_cliente.php
   
 */ 
@@ -7,37 +7,38 @@ require_once __DIR__ . '/conexion.php';
 
 $nombre = '';
 $usuario = '';
-$fecha = '';
+$idCliente = '';
+$telefono = '';
+$direccion = '';
+$correo = '';
 $mensaje = '';
 $tipoMensaje = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre = trim($_POST['nombre'] ?? '');
     $usuario = trim($_POST['usuario'] ?? '');
-    $fecha = trim($_POST['fecha'] ?? '');
+    $idCliente = trim($_POST['id_cliente'] ?? '');
+    $telefono = trim($_POST['telefono'] ?? '');
+    $direccion = trim($_POST['direccion'] ?? '');
+    $correo = trim($_POST['correo'] ?? '');
 
-    $fechaValida = false;
-    if ($fecha !== '') {
-        $fechaObj = DateTime::createFromFormat('Y-m-d', $fecha);
-        $fechaValida = $fechaObj && $fechaObj->format('Y-m-d') === $fecha;
-    }
-
-    if ($nombre === '' || $usuario === '' || $fecha === '') {
+    if ($nombre === '' || $usuario === '' || $idCliente === '' || $telefono === '' || $direccion === '' || $correo === '') {
         $mensaje = 'Complete todos los campos.';
         $tipoMensaje = 'error';
-    } elseif (!$fechaValida) {
-        $mensaje = 'La fecha no tiene un formato valido.';
+    } elseif (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        $mensaje = 'Ingrese un correo electronico valido.';
         $tipoMensaje = 'error';
     } else {
         $pedido = 1;
         $producto = '0';
         $precio = 0;
+        $fecha = date('Y-m-d');
 
-        $sql = 'INSERT INTO cliente (nombre, usuario, pedido, fecha, producto, precio) VALUES (?, ?, ?, ?, ?, ?)';
+        $sql = 'INSERT INTO cliente (`ID cliente`, nombre, usuario, telefono, direccion, correo, pedido, fecha, producto, precio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
         $stmt = mysqli_prepare($conexion, $sql);
 
         if ($stmt) {
-            mysqli_stmt_bind_param($stmt, 'ssissi', $nombre, $usuario, $pedido, $fecha, $producto, $precio);
+            mysqli_stmt_bind_param($stmt, 'ssssssissi', $idCliente, $nombre, $usuario, $telefono, $direccion, $correo, $pedido, $fecha, $producto, $precio);
             $ok = mysqli_stmt_execute($stmt);
 
             if ($ok) {
@@ -204,8 +205,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="campo">
-                <label for="fecha">Fecha</label>
-                <input type="date" id="fecha" name="fecha" value="<?php echo htmlspecialchars($fecha, ENT_QUOTES, 'UTF-8'); ?>" required>
+                <label for="id_cliente">ID cliente</label>
+                <input type="text" id="id_cliente" name="id_cliente" value="<?php echo htmlspecialchars($idCliente, ENT_QUOTES, 'UTF-8'); ?>" maxlength="20" required>
+            </div>
+
+            <div class="campo">
+                <label for="telefono">Teléfono</label>
+                <input type="text" id="telefono" name="telefono" value="<?php echo htmlspecialchars($telefono, ENT_QUOTES, 'UTF-8'); ?>" maxlength="40" required>
+            </div>
+
+            <div class="campo">
+                <label for="direccion">Dirección</label>
+                <input type="text" id="direccion" name="direccion" value="<?php echo htmlspecialchars($direccion, ENT_QUOTES, 'UTF-8'); ?>" maxlength="200" required>
+            </div>
+
+            <div class="campo">
+                <label for="correo">Correo</label>
+                <input type="email" id="correo" name="correo" value="<?php echo htmlspecialchars($correo, ENT_QUOTES, 'UTF-8'); ?>" maxlength="150" required>
             </div>
 
             <div class="acciones">
