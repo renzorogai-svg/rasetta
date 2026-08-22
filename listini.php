@@ -1,6 +1,6 @@
 <?php 
 /*
-20-08-2026 desde PC
+22-08-2026 desde laptop
 */
 require_once __DIR__ . '/conexion.php';
 
@@ -290,7 +290,7 @@ if ($resultadoColumnasAccesorios) {
 <body>
 	<main class="contenedor">
 		<div class="acciones">
-			<a class="boton-inicio" href="inicio.php">Volver a inicio</a>
+			<a class="boton-inicio" href="inicio.php?v=<?php echo urlencode((string) time()); ?>">Volver a inicio</a>
 		</div>
 		<h3>Daywear (ropa de dia)</h3>
 

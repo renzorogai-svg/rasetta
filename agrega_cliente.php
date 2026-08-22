@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($ok) {
                 mysqli_stmt_close($stmt);
                 // Redirige a la pantalla de inicio tras guardar con éxito
-                header('Location: inicio.php');
+                header('Location: inicio.php?v=' . urlencode((string) time()));
                 exit;
             } else {
                 $mensaje = 'No se pudo guardar el cliente.';
@@ -226,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="acciones">
                 <button class="boton" type="submit">Aceptar</button>
-                <a class="boton boton-secundario" href="inicio.php">Volver</a>
+                <a class="boton boton-secundario" href="inicio.php?v=<?php echo urlencode((string) time()); ?>">Volver</a>
             </div>
         </form>
     </main>

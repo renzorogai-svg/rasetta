@@ -1,12 +1,21 @@
 <?php
 ob_start();
 
-/* 21-08-2026  desde PC
+/* 22-08-2026  desde Laptop
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
 require_once __DIR__ . '/conexion.php';
 require_once __DIR__ . '/vendor/autoload.php';
+
+// Evita respuestas en cache para que los cambios de clientes/pedidos se reflejen al instante.
+$marcaTemporal = gmdate('D, d M Y H:i:s') . ' GMT';
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+header('Last-Modified: ' . $marcaTemporal);
+header('ETag: "ver-cliente-' . md5($marcaTemporal . microtime(true)) . '"');
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -27,6 +36,48 @@ $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (stri
 function formatear_precio_mostrar($precio)
 {
     return number_format((float) $precio, 0, ',', '.');
+}
+
+function formatear_precio_euro($precio)
+{
+    return '€ ' . formatear_precio_mostrar($precio);
+}
+
+function es_precio_cero($precio)
+{
+    return is_numeric($precio) && abs((float) $precio) < 0.00001;
+}
+
+function obtener_precio_mostrar_item($precio, $tipo = 'producto')
+{
+    if ((string) $tipo === 'tela' && es_precio_cero($precio)) {
+        return '';
+    }
+
+    return is_numeric($precio) ? formatear_precio_euro($precio) : (string) $precio;
+}
+
+function limpiar_nombre_producto_exportacion($producto, $precio = null)
+{
+    $texto = (string) $producto;
+    $texto = preg_replace('/\s*\|\s*Rango\s*:\s*[^|]+/i', '', $texto);
+    $texto = preg_replace('/\s*\|\s*Pagina\s*:\s*[^|]+/i', '', $texto);
+
+    if ($precio !== null && $precio !== '' && is_numeric($precio)) {
+        $precioFormateado = (string) formatear_precio_mostrar($precio);
+        $precioPlano = (string) (int) round((float) $precio);
+
+        // Quita precios al final aunque vengan con separadores, prefijo '$' o luego de '|'.
+        $texto = preg_replace('/\s*\|\s*\$?\s*' . preg_quote($precioFormateado, '/') . '\s*$/i', '', $texto);
+        $texto = preg_replace('/\s*\|\s*\$?\s*' . preg_quote($precioPlano, '/') . '\s*$/i', '', $texto);
+        $texto = preg_replace('/\s*\$?\s*' . preg_quote($precioFormateado, '/') . '\s*$/i', '', $texto);
+        $texto = preg_replace('/\s*\$?\s*' . preg_quote($precioPlano, '/') . '\s*$/i', '', $texto);
+    }
+
+    $texto = preg_replace('/\s*\|\s*$/', '', $texto);
+    $texto = preg_replace('/\s{2,}/', ' ', $texto);
+
+    return trim($texto);
 }
 
 function obtener_rango_producto($producto)
@@ -113,6 +164,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_cliente'])) 
                 $tipoMensaje = 'ok';
                 $usuarioBuscado = '';
                 $pedidoSeleccionado = '';
+                $tokenCacheInicio = 'v' . preg_replace('/\D/', '', (string) microtime(true)) . random_int(1000, 9999);
+                header('Location: inicio.php?' . $tokenCacheInicio);
+                exit;
             } elseif ($okDeleteCliente) {
                 $mensaje = 'No se encontraron registros para ese cliente.';
                 $tipoMensaje = 'error';
@@ -230,8 +284,11 @@ if (isset($_GET['exportar_excel']) && $_GET['exportar_excel'] === '1') {
     $filaExcel = 11;
     foreach ($productosPedido as $item) {
         $precio = $item['precio'] ?? '';
-        $precioExcel = is_numeric($precio) ? (float) $precio : $precio;
-        $hoja->fromArray([[(string) ($item['producto'] ?? ''), $precioExcel]], null, 'A' . $filaExcel);
+        $precioExcel = ((string) ($item['tipo'] ?? 'producto') === 'tela' && es_precio_cero($precio))
+            ? ''
+            : (is_numeric($precio) ? (float) $precio : $precio);
+        $nombreProductoExcel = limpiar_nombre_producto_exportacion($item['producto'] ?? '', $precio);
+        $hoja->fromArray([[$nombreProductoExcel, $precioExcel]], null, 'A' . $filaExcel);
         $filaExcel++;
     }
 
@@ -249,7 +306,7 @@ if (isset($_GET['exportar_excel']) && $_GET['exportar_excel'] === '1') {
     $hoja->getStyle('A11:A' . $filaExcel)->getAlignment()->setWrapText(true);
     $hoja->getColumnDimension('A')->setWidth(72);
     $hoja->getColumnDimension('B')->setWidth(18);
-    $hoja->getStyle('B11:B' . $filaExcel)->getNumberFormat()->setFormatCode('#,##0');
+    $hoja->getStyle('B11:B' . $filaExcel)->getNumberFormat()->setFormatCode('"€ "#,##0');
     $hoja->freezePane('A11');
     $hoja->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
     $hoja->getPageSetup()->setFitToWidth(1);
@@ -296,8 +353,9 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
     $filasProductosPdf = '';
     foreach ($productosPedido as $item) {
         $precio = $item['precio'] ?? '';
-        $precioMostrar = is_numeric($precio) ? formatear_precio_mostrar($precio) : (string) $precio;
-        $filasProductosPdf .= '<tr><td>' . $escaparPdf($item['producto'] ?? '') . '</td><td class="precio">' . $escaparPdf($precioMostrar) . '</td></tr>';
+        $precioMostrar = obtener_precio_mostrar_item($precio, $item['tipo'] ?? 'producto');
+        $nombreProductoPdf = limpiar_nombre_producto_exportacion($item['producto'] ?? '', $precio);
+        $filasProductosPdf .= '<tr><td>' . $escaparPdf($nombreProductoPdf) . '</td><td class="precio">' . $escaparPdf($precioMostrar) . '</td></tr>';
     }
 
     $htmlPdf = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
@@ -326,7 +384,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         $htmlPdf .= '<tr><td>' . $escaparPdf($etiqueta) . '</td><td>' . $escaparPdf($valor) . '</td></tr>';
     }
     $htmlPdf .= '</table><h2>Productos</h2><table class="productos"><thead><tr><th>Producto</th><th class="precio">Precio</th></tr></thead><tbody>';
-    $htmlPdf .= $filasProductosPdf . '<tr class="total"><td>Total</td><td class="precio">' . $escaparPdf(formatear_precio_mostrar($totalPedido)) . '</td></tr></tbody></table></body></html>';
+    $htmlPdf .= $filasProductosPdf . '<tr class="total"><td>Total</td><td class="precio">' . $escaparPdf(formatear_precio_euro($totalPedido)) . '</td></tr></tbody></table></body></html>';
 
     try {
         $directorioTemporalPdf = __DIR__ . '/tmp';
@@ -645,7 +703,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                     <?php if ($usuarioBuscado !== ''): ?>
                         <button class="boton boton-peligro" type="submit" form="formEliminarCliente" onclick="return confirm('ATENCION: Se eliminara completamente el cliente y TODOS sus pedidos. Desea continuar?');">Eliminar cliente</button>
                     <?php endif; ?>
-                    <a class="boton" href="inicio.php">Volver</a>
+                    <a class="boton" id="btnVolverInicio" href="inicio.php">Volver</a>
                 </div>
             </form>
 
@@ -711,7 +769,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                             <?php foreach ($itemsDelRango as $item): ?>
                                 <?php
                                     $precioProducto = $item['precio'] ?? '';
-                                    $precioProductoMostrar = is_numeric($precioProducto) ? formatear_precio_mostrar($precioProducto) : (string) $precioProducto;
+                                    $precioProductoMostrar = obtener_precio_mostrar_item($precioProducto, $item['tipo'] ?? 'producto');
                                 ?>
                                 <div class="fila-producto">
                                     <div class="nombre-producto"><?php echo htmlspecialchars((string) ($item['producto'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
@@ -721,12 +779,26 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                         <?php endforeach; ?>
                         <div class="fila-producto fila-total">
                             <div class="nombre-producto">Total</div>
-                            <div class="precio-producto"><?php echo htmlspecialchars(formatear_precio_mostrar($totalPedido), ENT_QUOTES, 'UTF-8'); ?></div>
+                            <div class="precio-producto"><?php echo htmlspecialchars(formatear_precio_euro($totalPedido), ENT_QUOTES, 'UTF-8'); ?></div>
                         </div>
                     </div>
                 <?php endif; ?>
             <?php endif; ?>
         </section>
     </main>
+    <script>
+        (function () {
+            const btnVolverInicio = document.getElementById('btnVolverInicio');
+            if (!btnVolverInicio) {
+                return;
+            }
+
+            btnVolverInicio.addEventListener('click', function (event) {
+                event.preventDefault();
+                const marca = 'v' + Date.now().toString() + Math.floor(Math.random() * 100000).toString();
+                window.location.href = 'inicio.php?' + marca;
+            });
+        })();
+    </script>
 </body>
 </html>

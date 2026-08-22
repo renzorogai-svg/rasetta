@@ -1,5 +1,5 @@
 <?php
-/*  20-08-2026  desde Laptop
+/*  22-08-2026  desde Laptop
 */
 require_once 'conexion.php';
 
@@ -366,7 +366,7 @@ if ($articuloBuscado !== '') {
     <div class="container">
         <h1>Catálogo de Telas</h1>
         <div class="barra-superior">
-            <a href="inicio.php">Volver a inicio</a>
+            <a href="inicio.php?v=<?php echo urlencode((string) time()); ?>">Volver a inicio</a>
             <button type="button" id="botonMostrarBusqueda" class="boton-buscar" aria-expanded="<?php echo $articuloBuscado !== '' ? 'true' : 'false'; ?>">Buscar</button>
             <a href="agregar_tela.php">Agregar tela</a>
         </div>

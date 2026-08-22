@@ -1,5 +1,5 @@
 <?php
-/** 20-08-2026 desde PC
+/** 22-08-2026 desde lapto
  * inicio.php
  *
  * Página de inicio del administrador.
@@ -9,6 +9,17 @@
  * @package Administrador
  */
 require_once __DIR__ . '/conexion.php';
+
+// Evita que el navegador reutilice una version en cache de la lista de clientes.
+$marcaTemporal = gmdate('D, d M Y H:i:s') . ' GMT';
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0, no-transform');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Surrogate-Control: no-store');
+header('X-Accel-Expires: 0');
+header('Pragma: no-cache');
+header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+header('Last-Modified: ' . $marcaTemporal);
+header('ETag: "inicio-' . md5($marcaTemporal . microtime(true)) . '"');
 
 $usuarioBuscado = '';
 $mensaje = '';
@@ -322,6 +333,16 @@ if ($stmtClientes) {
     </main>
 
     <script>
+        (function () {
+            const queryActual = window.location.search;
+            const tieneTokenManual = /^\?v\d+$/i.test(queryActual);
+
+            if (!tieneTokenManual) {
+                const token = 'v' + Date.now().toString() + Math.floor(Math.random() * 100000).toString();
+                window.location.replace('inicio.php?' + token);
+            }
+        })();
+
         document.addEventListener('DOMContentLoaded', function () {
             const btnBuscar = document.getElementById('btn-top-buscar');
             const dropdown = document.getElementById('dropdown-clientes');
@@ -365,6 +386,15 @@ if ($stmtClientes) {
             document.addEventListener('click', function () {
                 dropdown.classList.remove('activo');
             });
+        });
+
+        window.addEventListener('pageshow', function (event) {
+            const nav = performance.getEntriesByType('navigation');
+            const esBackForward = nav.length > 0 && nav[0].type === 'back_forward';
+            if (event.persisted || esBackForward) {
+                const token = 'v' + Date.now().toString() + Math.floor(Math.random() * 100000).toString();
+                window.location.replace('inicio.php?' + token);
+            }
         });
     </script>
 </body>
