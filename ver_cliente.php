@@ -1,5 +1,7 @@
 <?php
-/* 20-08-2026  desde PC
+ob_start();
+
+/* 21-08-2026  desde PC
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -45,7 +47,7 @@ function normalizar_nombre_archivo($texto)
     return $texto !== '' ? $texto : 'cliente';
 }
 
-// Procesar eliminación de pedido individual
+// Procesar eliminaci贸n de pedido individual
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_pedido'])) {
     $usuarioEliminar = trim($_POST['usuario'] ?? '');
     $pedidoEliminar = trim($_POST['pedido'] ?? '');
@@ -90,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_pedido'])) {
     $mostrarSelectorPedido = $usuarioBuscado !== '';
 }
 
-// Procesar eliminación completa de cliente
+// Procesar eliminaci贸n completa de cliente
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_cliente'])) {
     $usuarioEliminarCliente = trim($_POST['usuario'] ?? '');
 
@@ -257,13 +259,27 @@ if (isset($_GET['exportar_excel']) && $_GET['exportar_excel'] === '1') {
     $nombreCliente = normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado);
     $nombreArchivo = $nombreCliente . '_' . (int) $pedidoSeleccionado . '.xlsx';
 
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment; filename="' . $nombreArchivo . '"');
-    header('Cache-Control: max-age=0');
+    $archivoTemporal = tempnam(sys_get_temp_dir(), 'rasetta_excel_');
+    if ($archivoTemporal === false) {
+        throw new RuntimeException('No se pudo preparar el archivo de Excel.');
+    }
 
     $escritor = new Xlsx($hojaCalculo);
-    $escritor->save('php://output');
+    $escritor->save($archivoTemporal);
     $hojaCalculo->disconnectWorksheets();
+
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    header('Content-Type: application/octet-stream');
+    header('Content-Disposition: attachment; filename="' . $nombreArchivo . '"');
+    header('Content-Length: ' . filesize($archivoTemporal));
+    header('Cache-Control: max-age=0');
+    header('Content-Transfer-Encoding: binary');
+
+    readfile($archivoTemporal);
+    unlink($archivoTemporal);
     exit;
 }
 
@@ -312,12 +328,41 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
     $htmlPdf .= '</table><h2>Productos</h2><table class="productos"><thead><tr><th>Producto</th><th class="precio">Precio</th></tr></thead><tbody>';
     $htmlPdf .= $filasProductosPdf . '<tr class="total"><td>Total</td><td class="precio">' . $escaparPdf(formatear_precio_mostrar($totalPedido)) . '</td></tr></tbody></table></body></html>';
 
-    $pdf = new Mpdf(['format' => 'A4', 'orientation' => 'P', 'tempDir' => __DIR__ . '/vendor/mpdf/tmp']);
-    $pdf->SetTitle('Pedido ' . $pedidoSeleccionado);
-    $pdf->WriteHTML($htmlPdf);
-    $nombreCliente = normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado);
-    $pdf->Output($nombreCliente . '_' . (int) $pedidoSeleccionado . '.pdf', 'D');
-    exit;
+    try {
+        $directorioTemporalPdf = __DIR__ . '/tmp';
+        if (!is_dir($directorioTemporalPdf) && !mkdir($directorioTemporalPdf, 0775, true) && !is_dir($directorioTemporalPdf)) {
+            throw new RuntimeException('No se pudo preparar la carpeta temporal del PDF.');
+        }
+
+        $archivoTemporalPdf = tempnam($directorioTemporalPdf, 'rasetta_pdf_');
+        if ($archivoTemporalPdf === false) {
+            throw new RuntimeException('No se pudo preparar el archivo PDF.');
+        }
+
+        $pdf = new Mpdf(['format' => 'A4', 'orientation' => 'P', 'tempDir' => $directorioTemporalPdf]);
+        $pdf->SetTitle('Pedido ' . $pedidoSeleccionado);
+        $pdf->WriteHTML($htmlPdf);
+        $nombreCliente = normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado);
+        $nombreArchivoPdf = $nombreCliente . '_' . (int) $pedidoSeleccionado . '.pdf';
+        $pdf->Output($archivoTemporalPdf, \Mpdf\Output\Destination::FILE);
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $nombreArchivoPdf . '"');
+        header('Content-Length: ' . filesize($archivoTemporalPdf));
+        header('Cache-Control: max-age=0');
+
+        readfile($archivoTemporalPdf);
+        unlink($archivoTemporalPdf);
+        exit;
+    } catch (\Throwable $errorPdf) {
+        file_put_contents(__DIR__ . '/pdf_error.log', date('c') . ' ' . $errorPdf->getMessage() . PHP_EOL, FILE_APPEND);
+        http_response_code(500);
+        exit('No se pudo generar el PDF. Revise el archivo pdf_error.log.');
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -591,8 +636,8 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                     <a class="boton" href="seleccion_producto.php<?php echo $usuarioBuscado !== '' ? '?usuario=' . urlencode($usuarioBuscado) . '&pedido=nuevo' : ''; ?>">Agregar pedido</a>
                     <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
                         <a class="boton" href="seleccion_producto.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>">Modificar pedido</a>
-                        <a class="boton" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_excel=1">Guardar Excel</a>
-                        <a class="boton" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_pdf=1">Guardar PDF</a>
+                        <a class="boton" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_excel=1" download="<?php echo htmlspecialchars(normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.xlsx', ENT_QUOTES, 'UTF-8'); ?>">Guardar Excel</a>
+                        <a class="boton" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_pdf=1&v=<?php echo urlencode((string) filemtime(__FILE__)); ?>" download="<?php echo htmlspecialchars(normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.pdf', ENT_QUOTES, 'UTF-8'); ?>">Guardar PDF</a>
                     <?php endif; ?>
                     <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
                         <button class="boton boton-peligro" type="submit" form="formEliminarPedido" onclick="return confirm('Se eliminara todo el pedido seleccionado. Desea continuar?');">Eliminar pedido</button>
