@@ -1,7 +1,6 @@
 <?php
 ob_start();
-
-/* 22-08-2026  desde Laptop
+/* 24-08-2026  desde Laptop
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -26,6 +25,7 @@ $pedidoSeleccionado = trim($_GET['pedido'] ?? '');
 $pedidosCliente = [];
 $clienteMostrado = null;
 $productosPedido = [];
+$fechaPedido = '';
 $totalPedido = 0;
 $mensaje = '';
 $tipoMensaje = '';
@@ -35,17 +35,58 @@ $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (stri
 
 function formatear_precio_mostrar($precio)
 {
-    return number_format((float) $precio, 0, ',', '.');
+    $precioNumerico = convertir_precio_numerico($precio);
+
+    return number_format($precioNumerico ?? 0, 0, ',', '.');
 }
 
 function formatear_precio_euro($precio)
 {
-    return '€ ' . formatear_precio_mostrar($precio);
+    return "\xE2\x82\xAC " . formatear_precio_mostrar($precio);
+}
+
+function convertir_precio_numerico($precio)
+{
+    if (is_int($precio) || is_float($precio)) {
+        return (float) $precio;
+    }
+
+    $texto = trim((string) $precio);
+    if ($texto === '') {
+        return null;
+    }
+
+    $texto = preg_replace('/[^0-9,.-]/', '', $texto);
+    if ($texto === '' || !preg_match('/\d/', $texto)) {
+        return null;
+    }
+
+    $ultimoPunto = strrpos($texto, '.');
+    $ultimaComa = strrpos($texto, ',');
+    if ($ultimoPunto !== false && $ultimaComa !== false) {
+        $separadorDecimal = $ultimoPunto > $ultimaComa ? '.' : ',';
+        $separadorMiles = $separadorDecimal === '.' ? ',' : '.';
+        $texto = str_replace($separadorMiles, '', $texto);
+        $texto = str_replace($separadorDecimal, '.', $texto);
+    } elseif ($ultimoPunto !== false || $ultimaComa !== false) {
+        $separador = $ultimoPunto !== false ? '.' : ',';
+        $posicionSeparador = strrpos($texto, $separador);
+        $digitosPosteriores = strlen($texto) - $posicionSeparador - 1;
+        if ($digitosPosteriores === 3) {
+            $texto = str_replace($separador, '', $texto);
+        } else {
+            $texto = str_replace($separador, '.', $texto);
+        }
+    }
+
+    return is_numeric($texto) ? (float) $texto : null;
 }
 
 function es_precio_cero($precio)
 {
-    return is_numeric($precio) && abs((float) $precio) < 0.00001;
+    $precioNumerico = convertir_precio_numerico($precio);
+
+    return $precioNumerico !== null && abs($precioNumerico) < 0.00001;
 }
 
 function obtener_precio_mostrar_item($precio, $tipo = 'producto')
@@ -54,7 +95,7 @@ function obtener_precio_mostrar_item($precio, $tipo = 'producto')
         return '';
     }
 
-    return is_numeric($precio) ? formatear_precio_euro($precio) : (string) $precio;
+    return convertir_precio_numerico($precio) !== null ? formatear_precio_euro($precio) : (string) $precio;
 }
 
 function limpiar_nombre_producto_exportacion($producto, $precio = null)
@@ -63,7 +104,8 @@ function limpiar_nombre_producto_exportacion($producto, $precio = null)
     $texto = preg_replace('/\s*\|\s*Rango\s*:\s*[^|]+/i', '', $texto);
     $texto = preg_replace('/\s*\|\s*Pagina\s*:\s*[^|]+/i', '', $texto);
 
-    if ($precio !== null && $precio !== '' && is_numeric($precio)) {
+    $precioNumerico = convertir_precio_numerico($precio);
+    if ($precioNumerico !== null) {
         $precioFormateado = (string) formatear_precio_mostrar($precio);
         $precioPlano = (string) (int) round((float) $precio);
 
@@ -89,6 +131,15 @@ function obtener_rango_producto($producto)
     return 'sin-rango';
 }
 
+function obtener_precio_item($precio, $producto)
+{
+    if (preg_match('/(?:\||^)\s*Precio\s*:\s*([^|]+)/i', (string) $producto, $coincidencias)) {
+        return trim($coincidencias[1]);
+    }
+
+    return trim((string) $precio);
+}
+
 function normalizar_nombre_archivo($texto)
 {
     $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', (string) $texto);
@@ -96,6 +147,19 @@ function normalizar_nombre_archivo($texto)
     $texto = preg_replace('/[^a-z0-9]+/', '', $texto);
 
     return $texto !== '' ? $texto : 'cliente';
+}
+
+function normalizar_telefono_whatsapp($telefono)
+{
+    $telefono = preg_replace('/\D+/', '', (string) $telefono);
+    if (substr($telefono, 0, 2) === '00') {
+        $telefono = substr($telefono, 2);
+    }
+    if (substr($telefono, 0, 1) === '0') {
+        $telefono = '58' . substr($telefono, 1);
+    }
+
+    return $telefono;
 }
 
 // Procesar eliminaci贸n de pedido individual
@@ -217,13 +281,14 @@ if ($usuarioBuscado === '') {
                     $pedidosCliente[$clavePedido] = [
                         'cliente' => $fila,
                         'pedido' => (string) ($fila['pedido'] ?? $clavePedido),
+                        'fecha' => (string) ($fila['fecha'] ?? ''),
                         'productos' => []
                     ];
                 }
 
                 $pedidosCliente[$clavePedido]['productos'][] = [
                     'producto' => (string) ($fila['producto'] ?? ''),
-                    'precio' => (string) ($fila['precio'] ?? ''),
+                    'precio' => obtener_precio_item($fila['precio'] ?? '', $fila['producto'] ?? ''),
                     'rango' => obtener_rango_producto($fila['producto'] ?? ''),
                     'tipo' => stripos((string) ($fila['producto'] ?? ''), 'Tela |') === 0 ? 'tela' : 'producto'
                 ];
@@ -231,12 +296,14 @@ if ($usuarioBuscado === '') {
 
             if ($pedidoSeleccionado !== '' && isset($pedidosCliente[$pedidoSeleccionado])) {
                 $clienteMostrado = $pedidosCliente[$pedidoSeleccionado]['cliente'];
+                $fechaPedido = $pedidosCliente[$pedidoSeleccionado]['fecha'];
                 $productosPedido = $pedidosCliente[$pedidoSeleccionado]['productos'];
             } else {
                 reset($pedidosCliente);
                 $pedidoSeleccionado = (string) key($pedidosCliente);
                 $pedidoData = current($pedidosCliente);
                 $clienteMostrado = $pedidoData['cliente'];
+                $fechaPedido = $pedidoData['fecha'];
                 $productosPedido = $pedidoData['productos'];
             }
         } else {
@@ -252,8 +319,9 @@ if ($usuarioBuscado === '') {
 if (!empty($productosPedido)) {
     foreach ($productosPedido as $item) {
         $precio = $item['precio'] ?? 0;
-        if (is_numeric($precio)) {
-            $totalPedido += (float) $precio;
+        $precioNumerico = convertir_precio_numerico($precio);
+        if ($precioNumerico !== null) {
+            $totalPedido += $precioNumerico;
         }
     }
 }
@@ -286,7 +354,7 @@ if (isset($_GET['exportar_excel']) && $_GET['exportar_excel'] === '1') {
         $precio = $item['precio'] ?? '';
         $precioExcel = ((string) ($item['tipo'] ?? 'producto') === 'tela' && es_precio_cero($precio))
             ? ''
-            : (is_numeric($precio) ? (float) $precio : $precio);
+            : (convertir_precio_numerico($precio) ?? $precio);
         $nombreProductoExcel = limpiar_nombre_producto_exportacion($item['producto'] ?? '', $precio);
         $hoja->fromArray([[$nombreProductoExcel, $precioExcel]], null, 'A' . $filaExcel);
         $filaExcel++;
@@ -351,11 +419,35 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
     };
 
     $filasProductosPdf = '';
+    $productosPorRangoPdf = [];
+    $ordenRangosPdf = [];
     foreach ($productosPedido as $item) {
-        $precio = $item['precio'] ?? '';
-        $precioMostrar = obtener_precio_mostrar_item($precio, $item['tipo'] ?? 'producto');
-        $nombreProductoPdf = limpiar_nombre_producto_exportacion($item['producto'] ?? '', $precio);
-        $filasProductosPdf .= '<tr><td>' . $escaparPdf($nombreProductoPdf) . '</td><td class="precio">' . $escaparPdf($precioMostrar) . '</td></tr>';
+        $rangoItem = (string) ($item['rango'] ?? obtener_rango_producto($item['producto'] ?? ''));
+        if (!isset($productosPorRangoPdf[$rangoItem])) {
+            $productosPorRangoPdf[$rangoItem] = [
+                'telas' => [],
+                'productos' => []
+            ];
+            $ordenRangosPdf[] = $rangoItem;
+        }
+
+        $tipoItem = ($item['tipo'] ?? 'producto') === 'tela' ? 'telas' : 'productos';
+        $productosPorRangoPdf[$rangoItem][$tipoItem][] = $item;
+    }
+
+    foreach ($ordenRangosPdf as $rangoItem) {
+        $filasProductosPdf .= '<tr class="rango"><td colspan="2">&nbsp;</td></tr>';
+        $itemsDelRango = array_merge(
+            $productosPorRangoPdf[$rangoItem]['telas'],
+            $productosPorRangoPdf[$rangoItem]['productos']
+        );
+
+        foreach ($itemsDelRango as $item) {
+            $precio = obtener_precio_item($item['precio'] ?? '', $item['producto'] ?? '');
+            $precioMostrar = obtener_precio_mostrar_item($precio, $item['tipo'] ?? 'producto');
+            $nombreProductoPdf = limpiar_nombre_producto_exportacion($item['producto'] ?? '', $precio);
+            $filasProductosPdf .= '<tr><td>' . $escaparPdf($nombreProductoPdf) . '</td><td class="precio">' . $escaparPdf($precioMostrar) . '</td></tr>';
+        }
     }
 
     $htmlPdf = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
@@ -369,9 +461,14 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         .productos th { background: #0f766e; color: #fff; text-align: left; padding: 7px 8px; }
         .productos td { border: 1px solid #d6dee8; padding: 7px 8px; vertical-align: top; }
         .productos .precio { width: 18%; text-align: right; white-space: nowrap; }
+        .productos .rango td { border-top: 2px solid #0f766e; border-bottom: 0; padding: 8px; color: #0f766e; font-weight: bold; background: #eef6f4; }
         .total td { font-weight: bold; background: #e3f3ef; }
     </style></head><body>';
-    $htmlPdf .= '<h1>Detalle de cliente y pedido</h1><table class="datos">';
+    $nombreClientePdf = (string) ($clienteMostrado['nombre'] ?? $usuarioBuscado);
+    $fechaPedidoPdf = $fechaPedido !== ''
+        ? date('d/m/Y', strtotime($fechaPedido))
+        : 'vacio';
+    $htmlPdf .= '<h1>Pedido de ' . $escaparPdf($nombreClientePdf) . '</h1><table class="datos">';
     foreach ([
         'ID cliente' => $clienteMostrado['ID cliente'] ?? 'vacio',
         'Nombre' => $clienteMostrado['nombre'] ?? '',
@@ -379,7 +476,8 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         'Telefono' => $clienteMostrado['telefono'] ?? 'vacio',
         'Direccion' => $clienteMostrado['direccion'] ?? 'vacio',
         'Correo' => $clienteMostrado['correo'] ?? 'vacio',
-        'Pedido' => $pedidoSeleccionado
+        'Pedido' => $pedidoSeleccionado,
+        'Fecha del pedido' => $fechaPedidoPdf
     ] as $etiqueta => $valor) {
         $htmlPdf .= '<tr><td>' . $escaparPdf($etiqueta) . '</td><td>' . $escaparPdf($valor) . '</td></tr>';
     }
@@ -398,7 +496,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         }
 
         $pdf = new Mpdf(['format' => 'A4', 'orientation' => 'P', 'tempDir' => $directorioTemporalPdf]);
-        $pdf->SetTitle('Pedido ' . $pedidoSeleccionado);
+        $pdf->SetTitle('Pedido de ' . $nombreClientePdf);
         $pdf->WriteHTML($htmlPdf);
         $nombreCliente = normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado);
         $nombreArchivoPdf = $nombreCliente . '_' . (int) $pedidoSeleccionado . '.pdf';
@@ -453,17 +551,13 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding: clamp(12px, 2.6vw, 24px);
+            padding: 0 clamp(12px, 2.6vw, 24px);
             overflow-x: hidden;
             overflow-y: auto;
         }
 
         body::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background: url("fotos/fondo.jpg?v=<?php echo htmlspecialchars($versionFondo, ENT_QUOTES, 'UTF-8'); ?>") center center / contain no-repeat;
-            z-index: -2;
+            display: none;
         }
 
         .contenedor {
@@ -471,7 +565,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             background: rgba(255, 255, 255, 0.3);
             border: 1px solid var(--borde);
             border-radius: 16px;
-            padding: 28px;
+            padding: 0 28px 28px;
             box-shadow: var(--sombra);
             margin: 0 auto;
         }
@@ -571,7 +665,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
 
         .resultado {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
         }
 
@@ -579,7 +673,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             display: grid;
             grid-template-columns: minmax(140px, 220px) 1fr;
             gap: 10px;
-            padding: 8px 10px;
+            padding: 2px 4px;
             background: #f5f9ff;
             border: 1px solid #dde7f5;
             border-radius: 8px;
@@ -642,7 +736,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             }
 
             .contenedor {
-                padding: 18px;
+                padding: 0 18px 18px;
                 border-radius: 12px;
             }
 
@@ -651,6 +745,10 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             }
 
             .fila-dato {
+                grid-template-columns: 1fr;
+            }
+
+            .resultado {
                 grid-template-columns: 1fr;
             }
 
@@ -692,6 +790,17 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                 <div class="acciones-form">
                     <button class="boton" type="submit">Buscar</button>
                     <a class="boton" href="seleccion_producto.php<?php echo $usuarioBuscado !== '' ? '?usuario=' . urlencode($usuarioBuscado) . '&pedido=nuevo' : ''; ?>">Agregar pedido</a>
+                    <?php if ($usuarioBuscado !== ''): ?>
+                        <?php $telefonoWhatsApp = normalizar_telefono_whatsapp($clienteMostrado['telefono'] ?? ''); ?>
+                        <?php if ($telefonoWhatsApp !== ''): ?>
+                            <?php if (ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
+                                <a class="boton boton-whatsapp" href="WhatsApp.php?<?php echo htmlspecialchars(http_build_query(['usuario' => $usuarioBuscado, 'pedido' => $pedidoSeleccionado, 'telefono' => $telefonoWhatsApp]), ENT_QUOTES, 'UTF-8'); ?>">Envío a WA</a>
+                            <?php else: ?>
+                                <a class="boton boton-whatsapp" href="https://wa.me/<?php echo htmlspecialchars($telefonoWhatsApp, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener">Envío a WA</a>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                        <a class="boton" href="editar_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>">Editar cliente</a>
+                    <?php endif; ?>
                     <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
                         <a class="boton" href="seleccion_producto.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>">Modificar pedido</a>
                         <a class="boton" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_excel=1" download="<?php echo htmlspecialchars(normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.xlsx', ENT_QUOTES, 'UTF-8'); ?>">Guardar Excel</a>
@@ -768,7 +877,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                             </div>
                             <?php foreach ($itemsDelRango as $item): ?>
                                 <?php
-                                    $precioProducto = $item['precio'] ?? '';
+                                    $precioProducto = obtener_precio_item($item['precio'] ?? '', $item['producto'] ?? '');
                                     $precioProductoMostrar = obtener_precio_mostrar_item($precioProducto, $item['tipo'] ?? 'producto');
                                 ?>
                                 <div class="fila-producto">

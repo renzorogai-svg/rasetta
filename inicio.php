@@ -187,7 +187,7 @@ if ($stmtClientes) {
             border: 1px solid var(--borde);
             border-radius: 10px;
             box-shadow: var(--sombra);
-            padding: 12px;
+            padding: 10px;
             z-index: 2000;
         }
 
@@ -197,7 +197,7 @@ if ($stmtClientes) {
 
         .campo-filtro-top {
             width: 100%;
-            padding: 8px 12px;
+            padding: 6px;
             border: 1px solid var(--borde);
             border-radius: 6px;
             font-size: 0.9rem;
@@ -221,7 +221,7 @@ if ($stmtClientes) {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 12px;
+            padding: 6px;
             text-decoration: none;
             color: var(--texto);
             border-bottom: 1px solid #f1f5f9;
