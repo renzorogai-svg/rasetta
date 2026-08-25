@@ -1,6 +1,6 @@
 <?php
 ob_start();
-/* 24-08-2026  desde Laptop
+/* 24-08-2026  desde PC
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -641,6 +641,20 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             background: var(--acento-hover);
         }
 
+        .boton-archivo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 8px;
+        }
+
+        .boton-archivo img {
+            display: block;
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+        }
+
         .mensaje {
             margin: 0;
             font-weight: 600;
@@ -765,7 +779,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
 <body>
     <main class="contenedor">
         <section class="tarjeta">
-            <h1>Detalle de cliente</h1>
+            <h1>Detalle de cliente<?php echo is_array($clienteMostrado) && trim((string) ($clienteMostrado['nombre'] ?? '')) !== '' ? ' - ' . htmlspecialchars((string) $clienteMostrado['nombre'], ENT_QUOTES, 'UTF-8') : ''; ?></h1>
 
             <form class="formulario" method="get" action="ver_cliente.php">
                 <div class="campo">
@@ -788,8 +802,11 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                 <?php endif; ?>
 
                 <div class="acciones-form">
-                    <button class="boton" type="submit">Buscar</button>
-                    <a class="boton" href="seleccion_producto.php<?php echo $usuarioBuscado !== '' ? '?usuario=' . urlencode($usuarioBuscado) . '&pedido=nuevo' : ''; ?>">Agregar pedido</a>
+                    <a class="boton" href="seleccion_producto.php<?php echo $usuarioBuscado !== '' ? '?usuario=' . urlencode($usuarioBuscado) . '&pedido=nuevo' : ''; ?>">Nuevo pedido</a>
+                    <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
+                        <a class="boton" href="seleccion_producto.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>">Modificar pedido</a>
+                        <button class="boton boton-peligro" type="submit" form="formEliminarPedido" onclick="return confirm('Se eliminara todo el pedido seleccionado. Desea continuar?');">Eliminar pedido</button>
+                    <?php endif; ?>
                     <?php if ($usuarioBuscado !== ''): ?>
                         <?php $telefonoWhatsApp = normalizar_telefono_whatsapp($clienteMostrado['telefono'] ?? ''); ?>
                         <?php if ($telefonoWhatsApp !== ''): ?>
@@ -800,17 +817,12 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                             <?php endif; ?>
                         <?php endif; ?>
                         <a class="boton" href="editar_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>">Editar cliente</a>
-                    <?php endif; ?>
-                    <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
-                        <a class="boton" href="seleccion_producto.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>">Modificar pedido</a>
-                        <a class="boton" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_excel=1" download="<?php echo htmlspecialchars(normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.xlsx', ENT_QUOTES, 'UTF-8'); ?>">Guardar Excel</a>
-                        <a class="boton" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_pdf=1&v=<?php echo urlencode((string) filemtime(__FILE__)); ?>" download="<?php echo htmlspecialchars(normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.pdf', ENT_QUOTES, 'UTF-8'); ?>">Guardar PDF</a>
-                    <?php endif; ?>
-                    <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
-                        <button class="boton boton-peligro" type="submit" form="formEliminarPedido" onclick="return confirm('Se eliminara todo el pedido seleccionado. Desea continuar?');">Eliminar pedido</button>
-                    <?php endif; ?>
-                    <?php if ($usuarioBuscado !== ''): ?>
                         <button class="boton boton-peligro" type="submit" form="formEliminarCliente" onclick="return confirm('ATENCION: Se eliminara completamente el cliente y TODOS sus pedidos. Desea continuar?');">Eliminar cliente</button>
+                    <?php endif; ?>
+                    <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
+                        <a class="boton boton-archivo" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_excel=1" download="<?php echo htmlspecialchars(normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.xlsx', ENT_QUOTES, 'UTF-8'); ?>"><img src="fotos/xls.jpg" alt="Guardar Excel"></a>
+                        <a class="boton boton-archivo" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_pdf=1&v=<?php echo urlencode((string) filemtime(__FILE__)); ?>" download="<?php echo htmlspecialchars(normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.pdf', ENT_QUOTES, 'UTF-8'); ?>"><img src="fotos/pdf.jpg" alt="Guardar PDF"></a>
+                        <a class="boton" href="envia_brioni.php?<?php echo htmlspecialchars(http_build_query(['usuario' => $usuarioBuscado, 'pedido' => $pedidoSeleccionado]), ENT_QUOTES, 'UTF-8'); ?>">Brioni</a>
                     <?php endif; ?>
                     <a class="boton" id="btnVolverInicio" href="inicio.php">Volver</a>
                 </div>

@@ -1,5 +1,7 @@
 <?php
-/*  22-08-2026  desde Laptop
+/*  24-08-2026  desde PC
+archivo: telas.php
+Descripcion: Muestra un catálogo de telas, permite buscar por artículo y eliminar registros.
 */
 require_once 'conexion.php';
 
@@ -61,6 +63,33 @@ if ($articuloBuscado !== '') {
     $result = mysqli_query($conexion, "SELECT Id, articulo, muestrario, composicion, pero, rango, pagina, foto FROM telas ORDER BY articulo, muestrario, rango, Id");
 }
 
+$telasPorMuestrario = [];
+$hayRegistrosTelas = false;
+
+if ($result) {
+    while ($filaTela = mysqli_fetch_assoc($result)) {
+        $hayRegistrosTelas = true;
+        $nombreMuestrario = trim((string) ($filaTela['muestrario'] ?? ''));
+        if ($nombreMuestrario === '') {
+            $nombreMuestrario = 'Sin muestrario';
+        }
+
+        if (!array_key_exists($nombreMuestrario, $telasPorMuestrario)) {
+            $telasPorMuestrario[$nombreMuestrario] = [];
+        }
+
+        $telasPorMuestrario[$nombreMuestrario][] = $filaTela;
+    }
+}
+
+if (isset($stmtTelas) && $stmtTelas) {
+    mysqli_stmt_close($stmtTelas);
+}
+
+if ($result instanceof mysqli_result) {
+    mysqli_free_result($result);
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -78,7 +107,20 @@ if ($articuloBuscado !== '') {
             padding: clamp(10px, 2.4vw, 20px);
             overflow-x: hidden;
         }
+        .logo-brioni {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            width: clamp(80px, 12vw, 140px) !important;
+            height: auto;
+            max-height: none !important;
+            z-index: 5;
+            border-radius: 8px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            background: #ffffff;
+        }
         .container {
+            position: relative;
             max-width: 1100px;
             margin: auto;
             background: white;
@@ -224,6 +266,57 @@ if ($articuloBuscado !== '') {
         .table-wrap {
             overflow-x: auto;
         }
+        .bloque-tabla {
+            margin-bottom: 10px;
+            border: 1px solid #d8e2e8;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #ffffff;
+        }
+        .bloque-tabla:last-child {
+            margin-bottom: 0;
+        }
+        .acordeon-linea {
+            width: 100%;
+            border: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px;
+            background: #eef5f8;
+            color: #17495a;
+            font-size: 1rem;
+            font-weight: 700;
+            text-align: left;
+            cursor: pointer;
+        }
+        .acordeon-linea:hover,
+        .acordeon-linea:focus-visible {
+            background: #e2edf2;
+        }
+        .acordeon-flecha {
+            font-size: 0.85rem;
+            transform: rotate(0deg);
+            transition: transform 0.2s ease;
+            flex: 0 0 auto;
+        }
+        .acordeon-conteo {
+            font-size: 0.85rem;
+            color: #4b6070;
+            font-weight: 600;
+        }
+        .tabla-wrapper {
+            display: none;
+            overflow-x: auto;
+            border-top: 1px solid #d8e2e8;
+        }
+        .bloque-tabla.abierta .tabla-wrapper {
+            display: block;
+        }
+        .bloque-tabla.abierta .acordeon-flecha {
+            transform: rotate(180deg);
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -297,11 +390,17 @@ if ($articuloBuscado !== '') {
         }
 
         @media (max-width: 768px) {
+            .logo-brioni {
+                top: 8px;
+                right: 8px;
+                width: clamp(64px, 20vw, 96px) !important;
+            }
             body {
                 padding: 10px;
             }
             .container {
                 padding: 14px;
+                padding-top: 30px;
                 border-radius: 10px;
             }
             .presentacion {
@@ -364,6 +463,7 @@ if ($articuloBuscado !== '') {
 </head>
 <body>
     <div class="container">
+        <img class="logo-brioni" src="fotos/brioni.jpg" alt="Logo Brioni">
         <h1>Catálogo de Telas</h1>
         <div class="barra-superior">
             <a href="inicio.php?v=<?php echo urlencode((string) time()); ?>">Volver a inicio</a>
@@ -387,70 +487,80 @@ if ($articuloBuscado !== '') {
                 <?php echo htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8'); ?>
             </p>
         <?php endif; ?>
-        <?php if ($result && mysqli_num_rows($result) > 0): ?>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Artículo</th>
-                            <th>Muestrario</th>
-                            <th>Composición</th>
-                            <th>Peso</th>
-                            <th>Rango</th>
-                            <th>Página</th>
-                            <th>Foto</th>
-                            <th>Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php while ($fila = mysqli_fetch_assoc($result)): ?>
-                            <tr>
-                                <td data-label="Artículo"><?= htmlspecialchars($fila['articulo'] ?? 'Sin artículo') ?></td>
-                                <td data-label="Muestrario"><?= htmlspecialchars($fila['muestrario'] ?? '-') ?></td>
-                                <td data-label="Composición"><?= htmlspecialchars($fila['composicion'] ?? '-') ?></td>
-                                <td data-label="Peso"><?= htmlspecialchars($fila['pero'] ?? '-') ?></td>
-                                <td data-label="Rango"><?= htmlspecialchars($fila['rango'] ?? '-') ?></td>
-                                <td data-label="Página"><?= htmlspecialchars($fila['pagina'] ?? '-') ?></td>
-                                <td data-label="Foto">
-                                    <?php
-                                    $fotoValor = trim((string) ($fila['foto'] ?? ''));
-                                    $rutaFoto = '';
+        <?php if ($hayRegistrosTelas): ?>
+            <?php foreach ($telasPorMuestrario as $nombreMuestrario => $filasMuestrario): ?>
+                <section class="bloque-tabla">
+                    <button type="button" class="acordeon-linea" aria-expanded="false">
+                        <span><?php echo htmlspecialchars('Muestrario: ' . $nombreMuestrario, ENT_QUOTES, 'UTF-8'); ?></span>
+                        <span class="acordeon-conteo"><?php echo (int) count($filasMuestrario); ?> artículo(s)</span>
+                        <span class="acordeon-flecha">▼</span>
+                    </button>
 
-                                    if ($fotoValor !== '') {
-                                        $candidatos = [];
-                                        if (pathinfo($fotoValor, PATHINFO_EXTENSION) !== '') {
-                                            $candidatos[] = 'fotos/' . $fotoValor;
-                                        } else {
-                                            $candidatos[] = 'fotos/' . $fotoValor . '.jpeg';
-                                            $candidatos[] = 'fotos/' . $fotoValor . '.jpg';
-                                            $candidatos[] = 'fotos/' . $fotoValor . '.png';
-                                        }
+                    <div class="tabla-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Artículo</th>
+                                    <th>Muestrario</th>
+                                    <th>Composición</th>
+                                    <th>Peso</th>
+                                    <th>Rango</th>
+                                    <th>Página</th>
+                                    <th>Foto</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($filasMuestrario as $fila): ?>
+                                    <tr>
+                                        <td data-label="Artículo"><?= htmlspecialchars($fila['articulo'] ?? 'Sin artículo') ?></td>
+                                        <td data-label="Muestrario"><?= htmlspecialchars($fila['muestrario'] ?? '-') ?></td>
+                                        <td data-label="Composición"><?= htmlspecialchars($fila['composicion'] ?? '-') ?></td>
+                                        <td data-label="Peso"><?= htmlspecialchars($fila['pero'] ?? '-') ?></td>
+                                        <td data-label="Rango"><?= htmlspecialchars($fila['rango'] ?? '-') ?></td>
+                                        <td data-label="Página"><?= htmlspecialchars($fila['pagina'] ?? '-') ?></td>
+                                        <td data-label="Foto">
+                                            <?php
+                                            $fotoValor = trim((string) ($fila['foto'] ?? ''));
+                                            $rutaFoto = '';
 
-                                        foreach ($candidatos as $candidato) {
-                                            if (file_exists(__DIR__ . '/' . $candidato)) {
-                                                $rutaFoto = $candidato;
-                                                break;
+                                            if ($fotoValor !== '') {
+                                                $candidatos = [];
+                                                if (pathinfo($fotoValor, PATHINFO_EXTENSION) !== '') {
+                                                    $candidatos[] = 'fotos/' . $fotoValor;
+                                                } else {
+                                                    $candidatos[] = 'fotos/' . $fotoValor . '.jpeg';
+                                                    $candidatos[] = 'fotos/' . $fotoValor . '.jpg';
+                                                    $candidatos[] = 'fotos/' . $fotoValor . '.png';
+                                                }
+
+                                                foreach ($candidatos as $candidato) {
+                                                    if (file_exists(__DIR__ . '/' . $candidato)) {
+                                                        $rutaFoto = $candidato;
+                                                        break;
+                                                    }
+                                                }
                                             }
-                                        }
-                                    }
-                                    ?>
+                                            ?>
 
-                                    <?php if ($rutaFoto !== ''): ?>
-                                        <img class="mini-foto-tela" src="<?= htmlspecialchars($rutaFoto) ?>" alt="Foto de la tela">
-                                    <?php endif; ?>
-                                </td>
-                                <td data-label="Acción">
-                                    <form method="post" action="telas.php" onsubmit="return confirm('¿Desea eliminar este artículo?');">
-                                        <input type="hidden" name="id_tela" value="<?= (int) ($fila['Id'] ?? 0) ?>">
-                                        <input type="hidden" name="articulo" value="<?= htmlspecialchars($articuloBuscado, ENT_QUOTES, 'UTF-8') ?>">
-                                        <button type="submit" name="eliminar_tela" class="boton-eliminar">Eliminar</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
-            </div>
+                                            <?php if ($rutaFoto !== ''): ?>
+                                                <img class="mini-foto-tela" src="<?= htmlspecialchars($rutaFoto) ?>" alt="Foto de la tela">
+                                            <?php endif; ?>
+                                        </td>
+                                        <td data-label="Acción">
+                                            <form method="post" action="telas.php" onsubmit="return confirm('¿Desea eliminar este artículo?');">
+                                                <input type="hidden" name="id_tela" value="<?= (int) ($fila['Id'] ?? 0) ?>">
+                                                <input type="hidden" name="articulo" value="<?= htmlspecialchars($articuloBuscado, ENT_QUOTES, 'UTF-8') ?>">
+                                                <button type="submit" name="eliminar_tela" class="boton-eliminar">Eliminar</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            <?php endforeach; ?>
         <?php else: ?>
             <div class="empty">No se encontraron registros en la base de datos.</div>
         <?php endif; ?>
@@ -483,6 +593,30 @@ if ($articuloBuscado !== '') {
                     }
                 });
             }
+
+            document.querySelectorAll('.bloque-tabla').forEach(function (bloque) {
+                var botonAcordeon = bloque.querySelector('.acordeon-linea');
+                if (!botonAcordeon) {
+                    return;
+                }
+
+                botonAcordeon.addEventListener('click', function () {
+                    var estaAbierto = bloque.classList.contains('abierta');
+
+                    document.querySelectorAll('.bloque-tabla').forEach(function (otroBloque) {
+                        var otroBoton = otroBloque.querySelector('.acordeon-linea');
+                        otroBloque.classList.remove('abierta');
+                        if (otroBoton) {
+                            otroBoton.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+
+                    if (!estaAbierto) {
+                        bloque.classList.add('abierta');
+                        botonAcordeon.setAttribute('aria-expanded', 'true');
+                    }
+                });
+            });
 
             var cerrarVisorImagen = function () {
                 if (!modalImagenTela || !imagenTelaAmpliada) {
