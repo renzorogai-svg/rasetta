@@ -809,12 +809,8 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                     <?php endif; ?>
                     <?php if ($usuarioBuscado !== ''): ?>
                         <?php $telefonoWhatsApp = normalizar_telefono_whatsapp($clienteMostrado['telefono'] ?? ''); ?>
-                        <?php if ($telefonoWhatsApp !== ''): ?>
-                            <?php if (ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
-                                <a class="boton boton-whatsapp" href="WhatsApp.php?<?php echo htmlspecialchars(http_build_query(['usuario' => $usuarioBuscado, 'pedido' => $pedidoSeleccionado, 'telefono' => $telefonoWhatsApp]), ENT_QUOTES, 'UTF-8'); ?>">Envío a WA</a>
-                            <?php else: ?>
-                                <a class="boton boton-whatsapp" href="https://wa.me/<?php echo htmlspecialchars($telefonoWhatsApp, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener">Envío a WA</a>
-                            <?php endif; ?>
+                        <?php if ($telefonoWhatsApp !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
+                            <a class="boton boton-whatsapp boton-archivo" href="WhatsApp.php?<?php echo htmlspecialchars(http_build_query(['usuario' => $usuarioBuscado, 'pedido' => $pedidoSeleccionado, 'telefono' => $telefonoWhatsApp]), ENT_QUOTES, 'UTF-8'); ?>"><img src="fotos/wa.jpg" alt="WA"></a>
                         <?php endif; ?>
                         <a class="boton" href="editar_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>">Editar cliente</a>
                         <button class="boton boton-peligro" type="submit" form="formEliminarCliente" onclick="return confirm('ATENCION: Se eliminara completamente el cliente y TODOS sus pedidos. Desea continuar?');">Eliminar cliente</button>
