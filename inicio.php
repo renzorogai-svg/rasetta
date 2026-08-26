@@ -1,5 +1,5 @@
 <?php
-/** 22-08-2026 desde lapto
+/** 26-08-2026 desde laptop
  * inicio.php
  *
  * Página de inicio del administrador.
@@ -163,13 +163,13 @@ if ($stmtClientes) {
         }
 
         .btn-tool-primary {
-            background: var(--acento);
-            border-color: var(--acento);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.15);
         }
 
         .btn-tool-primary:hover {
-            background: var(--acento-hover);
-            border-color: var(--acento-hover);
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
         }
 
         /* CONTENEDOR DESPLEGABLE EN LA BARRA DE HERRAMIENTAS */
@@ -262,6 +262,14 @@ if ($stmtClientes) {
             padding: 24px;
         }
 
+        @media (min-width: 768px) {
+            .btn-tool {
+                padding: 5px 10px;
+                font-size: 0.82rem;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.28);
+            }
+        }
+
         /* RESPONSIVO PARA DISPOSITIVOS MÓVILES */
         @media (max-width: 767px) {
             body {
@@ -321,9 +329,10 @@ if ($stmtClientes) {
                 </div>
             </div>
 
+            <a class="btn-tool btn-tool-primary" href="agrega_cliente.php">+ Agregar cliente</a>
             <a class="btn-tool" href="listini.php">Lista precios</a>
             <a class="btn-tool" href="telas.php">Muestrario telas</a>
-            <a class="btn-tool btn-tool-primary" href="agrega_cliente.php">+ Agregar cliente</a>
+            <a class="btn-tool" href="reportes.php">Reporte ventas</a>
         </nav>
     </header>
 

@@ -1,6 +1,6 @@
 <?php
 ob_start();
-/* 24-08-2026  desde PC
+/* 26-08-2026  desde Lap Top
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -612,12 +612,17 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             border-radius: 8px;
             font-size: 0.95rem;
             background: #ffffff;
+            color: #1f2937;
         }
 
         .acciones-form {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+            padding: 10px;
+            background: #e5e7eb;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
         }
 
         .boton {
@@ -625,20 +630,22 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             align-self: flex-start;
             text-align: center;
             text-decoration: none;
-            background: var(--acento);
-            color: #ffffff;
+            background: #ffffff;
+            color: #0b3d6e;
             font-weight: 600;
             font-size: 0.92rem;
             padding: 8px 12px;
             border-radius: 10px;
-            border: 0;
+            border: 1px solid #ffffff;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.18);
             cursor: pointer;
-            transition: background 0.2s ease;
+            transition: background 0.2s ease, color 0.2s ease;
         }
 
         .boton:hover,
         .boton:focus-visible {
-            background: var(--acento-hover);
+            background: #e4f1fa;
+            color: #082f53;
         }
 
         .boton-archivo {
@@ -669,12 +676,14 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         }
 
         .boton-peligro {
-            background: #b91c1c;
+            background: #ffffff;
+            color: #0b3d6e;
         }
 
         .boton-peligro:hover,
         .boton-peligro:focus-visible {
-            background: #991b1b;
+            background: #e4f1fa;
+            color: #082f53;
         }
 
         .resultado {
@@ -691,6 +700,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             background: #f5f9ff;
             border: 1px solid #dde7f5;
             border-radius: 8px;
+            color: #1f2937;
         }
 
         .clave {
@@ -726,6 +736,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             background: #eef6ff;
             border: 1px solid #d9e8fb;
             border-radius: 8px;
+            color: #1f2937;
         }
 
         .nombre-producto {
