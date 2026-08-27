@@ -1,6 +1,6 @@
 <?php
 ob_start();
-/* 26-08-2026  desde Lap Top
+/* 24-08-2026  desde PC
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -32,6 +32,9 @@ $tipoMensaje = '';
 $mostrarSelectorPedido = $usuarioBuscado !== '';
 $rutaFondo = __DIR__ . '/fotos/fondo.jpg';
 $versionFondo = file_exists($rutaFondo) ? (string) filemtime($rutaFondo) : (string) time();
+$fotosTelas = [];
+$pesosTelas = [];
+$pesosTelasPorArticulo = [];
 
 function formatear_precio_mostrar($precio)
 {
@@ -103,6 +106,7 @@ function limpiar_nombre_producto_exportacion($producto, $precio = null)
     $texto = (string) $producto;
     $texto = preg_replace('/\s*\|\s*Rango\s*:\s*[^|]+/i', '', $texto);
     $texto = preg_replace('/\s*\|\s*Pagina\s*:\s*[^|]+/i', '', $texto);
+    $texto = preg_replace('/\s*\|\s*Precio\s*:\s*[^|]+/i', '', $texto);
 
     $precioNumerico = convertir_precio_numerico($precio);
     if ($precioNumerico !== null) {
@@ -160,6 +164,94 @@ function normalizar_telefono_whatsapp($telefono)
     }
 
     return $telefono;
+}
+
+function obtener_dato_tela_producto($producto, $campo)
+{
+    $patron = '/(?:^|\|)\s*' . preg_quote($campo, '/') . '\s*:\s*([^|]*)/i';
+
+    return preg_match($patron, (string) $producto, $coincidencias)
+        ? trim($coincidencias[1])
+        : '';
+}
+
+function crear_clave_tela($articulo, $muestrario, $composicion, $peso, $rango, $pagina)
+{
+    return implode('|', array_map(static function ($valor) {
+        return strtolower(trim((string) $valor));
+    }, [$articulo, $muestrario, $composicion, $peso, $rango, $pagina]));
+}
+
+function crear_clave_tela_sin_peso($articulo, $muestrario, $composicion, $rango, $pagina)
+{
+    return crear_clave_tela($articulo, $muestrario, $composicion, '', $rango, $pagina);
+}
+
+function crear_clave_tela_basica($articulo, $muestrario, $composicion)
+{
+    return crear_clave_tela($articulo, $muestrario, $composicion, '', '', '');
+}
+
+function actualizar_peso_tela_producto($producto, $peso)
+{
+    if (trim((string) $peso) === '') {
+        return (string) $producto;
+    }
+
+    return preg_replace('/((?:^|\|)\s*Peso\s*:\s*)[^|]*/i', '$1' . trim((string) $peso), (string) $producto);
+}
+
+function resolver_ruta_foto_tela($foto)
+{
+    $foto = trim((string) $foto);
+    if ($foto === '' || basename($foto) !== $foto) {
+        return '';
+    }
+
+    $candidatos = pathinfo($foto, PATHINFO_EXTENSION) !== ''
+        ? [$foto]
+        : [$foto . '.jpeg', $foto . '.jpg', $foto . '.png'];
+
+    foreach ($candidatos as $candidato) {
+        if (is_file(__DIR__ . '/fotos/' . $candidato)) {
+            return 'fotos/' . $candidato;
+        }
+    }
+
+    return '';
+}
+
+$resultadoFotosTelas = mysqli_query($conexion, 'SELECT articulo, muestrario, composicion, pero, rango, pagina, foto FROM telas');
+if ($resultadoFotosTelas) {
+    while ($filaTela = mysqli_fetch_assoc($resultadoFotosTelas)) {
+        $claveTela = crear_clave_tela(
+            $filaTela['articulo'] ?? '',
+            $filaTela['muestrario'] ?? '',
+            $filaTela['composicion'] ?? '',
+            $filaTela['pero'] ?? '',
+            $filaTela['rango'] ?? '',
+            $filaTela['pagina'] ?? ''
+        );
+        $fotosTelas[$claveTela] = resolver_ruta_foto_tela($filaTela['foto'] ?? '');
+        $claveTelaSinPeso = crear_clave_tela_sin_peso(
+            $filaTela['articulo'] ?? '',
+            $filaTela['muestrario'] ?? '',
+            $filaTela['composicion'] ?? '',
+            $filaTela['rango'] ?? '',
+            $filaTela['pagina'] ?? ''
+        );
+        $fotosTelas[$claveTelaSinPeso] = resolver_ruta_foto_tela($filaTela['foto'] ?? '');
+        $pesosTelas[$claveTelaSinPeso] = trim((string) ($filaTela['pero'] ?? ''));
+        $claveTelaBasica = crear_clave_tela_basica(
+            $filaTela['articulo'] ?? '',
+            $filaTela['muestrario'] ?? '',
+            $filaTela['composicion'] ?? ''
+        );
+        $fotosTelas[$claveTelaBasica] = resolver_ruta_foto_tela($filaTela['foto'] ?? '');
+        $pesosTelas[$claveTelaBasica] = trim((string) ($filaTela['pero'] ?? ''));
+        $pesosTelasPorArticulo[strtolower(trim((string) ($filaTela['articulo'] ?? '')))] = trim((string) ($filaTela['pero'] ?? ''));
+    }
+    mysqli_free_result($resultadoFotosTelas);
 }
 
 // Procesar eliminaci贸n de pedido individual
@@ -286,11 +378,37 @@ if ($usuarioBuscado === '') {
                     ];
                 }
 
+                $productoTela = (string) ($fila['producto'] ?? '');
+                $articuloTelaPedido = obtener_dato_tela_producto($productoTela, 'Articulo');
+                $muestrarioTelaPedido = obtener_dato_tela_producto($productoTela, 'Muestrario');
+                $composicionTelaPedido = obtener_dato_tela_producto($productoTela, 'Composicion');
+                $claveTelaPedido = crear_clave_tela_sin_peso(
+                    $articuloTelaPedido,
+                    $muestrarioTelaPedido,
+                    $composicionTelaPedido,
+                    obtener_dato_tela_producto($productoTela, 'Rango'),
+                    obtener_dato_tela_producto($productoTela, 'Pagina')
+                );
+                $claveTelaBasicaPedido = crear_clave_tela_basica(
+                    $articuloTelaPedido,
+                    $muestrarioTelaPedido,
+                    $composicionTelaPedido
+                );
+
                 $pedidosCliente[$clavePedido]['productos'][] = [
-                    'producto' => (string) ($fila['producto'] ?? ''),
+                    'producto' => $productoTela,
                     'precio' => obtener_precio_item($fila['precio'] ?? '', $fila['producto'] ?? ''),
                     'rango' => obtener_rango_producto($fila['producto'] ?? ''),
-                    'tipo' => stripos((string) ($fila['producto'] ?? ''), 'Tela |') === 0 ? 'tela' : 'producto'
+                    'tipo' => stripos($productoTela, 'Tela |') === 0 ? 'tela' : 'producto',
+                    'pesoTela' => stripos($productoTela, 'Tela |') === 0
+                        ? ($pesosTelas[$claveTelaPedido]
+                            ?? $pesosTelas[$claveTelaBasicaPedido]
+                            ?? $pesosTelasPorArticulo[strtolower($articuloTelaPedido)]
+                            ?? obtener_dato_tela_producto($productoTela, 'Peso'))
+                        : '',
+                    'foto' => stripos($productoTela, 'Tela |') === 0
+                        ? ($fotosTelas[$claveTelaPedido] ?? $fotosTelas[$claveTelaBasicaPedido] ?? '')
+                        : ''
                 ];
             }
 
@@ -619,10 +737,6 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-            padding: 10px;
-            background: #e5e7eb;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
         }
 
         .boton {
@@ -630,22 +744,20 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             align-self: flex-start;
             text-align: center;
             text-decoration: none;
-            background: #ffffff;
-            color: #0b3d6e;
+            background: var(--acento);
+            color: #ffffff;
             font-weight: 600;
             font-size: 0.92rem;
             padding: 8px 12px;
             border-radius: 10px;
-            border: 1px solid #ffffff;
-            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.18);
+            border: 0;
             cursor: pointer;
-            transition: background 0.2s ease, color 0.2s ease;
+            transition: background 0.2s ease;
         }
 
         .boton:hover,
         .boton:focus-visible {
-            background: #e4f1fa;
-            color: #082f53;
+            background: var(--acento-hover);
         }
 
         .boton-archivo {
@@ -676,14 +788,12 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         }
 
         .boton-peligro {
-            background: #ffffff;
-            color: #0b3d6e;
+            background: #b91c1c;
         }
 
         .boton-peligro:hover,
         .boton-peligro:focus-visible {
-            background: #e4f1fa;
-            color: #082f53;
+            background: #991b1b;
         }
 
         .resultado {
@@ -737,6 +847,48 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             border: 1px solid #d9e8fb;
             border-radius: 8px;
             color: #1f2937;
+        }
+
+        .foto-tela {
+            display: block;
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
+        }
+
+        .boton-foto-tela {
+            padding: 0;
+            border: 0;
+            background: transparent;
+            cursor: zoom-in;
+        }
+
+        .visor-foto-tela {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.8);
+            cursor: zoom-out;
+        }
+
+        .visor-foto-tela.visible {
+            display: flex;
+        }
+
+        .visor-foto-tela img {
+            max-width: min(92vw, 900px);
+            max-height: 90dvh;
+            object-fit: contain;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
         }
 
         .nombre-producto {
@@ -898,10 +1050,23 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                                 <?php
                                     $precioProducto = obtener_precio_item($item['precio'] ?? '', $item['producto'] ?? '');
                                     $precioProductoMostrar = obtener_precio_mostrar_item($precioProducto, $item['tipo'] ?? 'producto');
+                                    $pesoTelaMostrar = trim((string) ($item['pesoTela'] ?? ''));
+                                    $productoMostrar = preg_replace('/\s*\|\s*Peso\s*:\s*[^|]*/i', '', (string) ($item['producto'] ?? ''));
+                                    $nombreProductoMostrar = limpiar_nombre_producto_exportacion($productoMostrar, $precioProducto);
+                                    if (($item['tipo'] ?? '') === 'tela' && $pesoTelaMostrar !== '') {
+                                        $nombreProductoMostrar .= ' | Peso: ' . $pesoTelaMostrar;
+                                    }
                                 ?>
                                 <div class="fila-producto">
-                                    <div class="nombre-producto"><?php echo htmlspecialchars((string) ($item['producto'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <div class="precio-producto"><?php echo htmlspecialchars($precioProductoMostrar, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <div class="nombre-producto"><?php echo htmlspecialchars($nombreProductoMostrar, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <div class="precio-producto">
+                                        <?php if (($item['tipo'] ?? '') === 'tela' && ($item['foto'] ?? '') !== ''): ?>
+                                            <button class="boton-foto-tela" type="button" data-foto-tela="<?php echo htmlspecialchars($item['foto'], ENT_QUOTES, 'UTF-8'); ?>" aria-label="Ampliar foto de la tela">
+                                                <img class="foto-tela" src="<?php echo htmlspecialchars($item['foto'], ENT_QUOTES, 'UTF-8'); ?>" alt="Foto de la tela">
+                                            </button>
+                                        <?php endif; ?>
+                                        <?php echo htmlspecialchars($precioProductoMostrar, ENT_QUOTES, 'UTF-8'); ?>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         <?php endforeach; ?>
@@ -914,6 +1079,9 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             <?php endif; ?>
         </section>
     </main>
+    <div class="visor-foto-tela" id="visorFotoTela" role="dialog" aria-modal="true" aria-label="Foto ampliada de la tela">
+        <img id="fotoTelaAmpliada" src="" alt="Foto ampliada de la tela">
+    </div>
     <script>
         (function () {
             const btnVolverInicio = document.getElementById('btnVolverInicio');
@@ -925,6 +1093,40 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                 event.preventDefault();
                 const marca = 'v' + Date.now().toString() + Math.floor(Math.random() * 100000).toString();
                 window.location.href = 'inicio.php?' + marca;
+            });
+        })();
+
+        (function () {
+            const visorFotoTela = document.getElementById('visorFotoTela');
+            const fotoTelaAmpliada = document.getElementById('fotoTelaAmpliada');
+            const botonesFotoTela = document.querySelectorAll('[data-foto-tela]');
+
+            if (!visorFotoTela || !fotoTelaAmpliada || botonesFotoTela.length === 0) {
+                return;
+            }
+
+            const cerrarVisor = function () {
+                visorFotoTela.classList.remove('visible');
+                fotoTelaAmpliada.removeAttribute('src');
+            };
+
+            botonesFotoTela.forEach(function (boton) {
+                boton.addEventListener('click', function () {
+                    fotoTelaAmpliada.src = boton.dataset.fotoTela;
+                    visorFotoTela.classList.add('visible');
+                });
+            });
+
+            visorFotoTela.addEventListener('click', function (event) {
+                if (event.target === visorFotoTela) {
+                    cerrarVisor();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    cerrarVisor();
+                }
             });
         })();
     </script>
