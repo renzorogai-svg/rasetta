@@ -1,6 +1,6 @@
 <?php
 ob_start();
-/* 24-08-2026  desde PC
+/* 27-08-2026  desde PC
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -730,13 +730,16 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             border-radius: 8px;
             font-size: 0.95rem;
             background: #ffffff;
-            color: #1f2937;
         }
 
         .acciones-form {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+            padding: 8px;
+            background: #d4d0c8;
+            border: 1px solid #a0a0a0;
+            border-radius: 4px;
         }
 
         .boton {
@@ -744,20 +747,21 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             align-self: flex-start;
             text-align: center;
             text-decoration: none;
-            background: var(--acento);
-            color: #ffffff;
+            background: #ffffff;
+            color: #374151;
             font-weight: 600;
             font-size: 0.92rem;
             padding: 8px 12px;
-            border-radius: 10px;
-            border: 0;
+            border-radius: 4px;
+            border: 1px solid #8c8c8c;
             cursor: pointer;
-            transition: background 0.2s ease;
+            transition: background 0.2s ease, border-color 0.2s ease;
         }
 
         .boton:hover,
         .boton:focus-visible {
-            background: var(--acento-hover);
+            background: #f1f1f1;
+            border-color: #5f5f5f;
         }
 
         .boton-archivo {
@@ -788,12 +792,15 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         }
 
         .boton-peligro {
-            background: #b91c1c;
+            background: #ffffff;
+            color: #b91c1c;
+            border-color: #b91c1c;
         }
 
         .boton-peligro:hover,
         .boton-peligro:focus-visible {
-            background: #991b1b;
+            background: #fef2f2;
+            border-color: #991b1b;
         }
 
         .resultado {
@@ -810,7 +817,6 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             background: #f5f9ff;
             border: 1px solid #dde7f5;
             border-radius: 8px;
-            color: #1f2937;
         }
 
         .clave {
@@ -846,7 +852,6 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             background: #eef6ff;
             border: 1px solid #d9e8fb;
             border-radius: 8px;
-            color: #1f2937;
         }
 
         .foto-tela {
