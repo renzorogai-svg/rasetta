@@ -1,6 +1,6 @@
 <?php
 ob_start();
-/* 27-08-2026  desde PC
+/* 28-08-2026  desde PC
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -537,30 +537,60 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
     };
 
     $filasProductosPdf = '';
-    $productosPorRangoPdf = [];
-    $ordenRangosPdf = [];
+    $articulosPorRangoPdf = [];
+    $productosPorArticuloPdf = [];
+    $ordenArticulosPdf = [];
+
     foreach ($productosPedido as $item) {
         $rangoItem = (string) ($item['rango'] ?? obtener_rango_producto($item['producto'] ?? ''));
-        if (!isset($productosPorRangoPdf[$rangoItem])) {
-            $productosPorRangoPdf[$rangoItem] = [
+        if (($item['tipo'] ?? 'producto') === 'tela') {
+            $articuloTela = trim(obtener_dato_tela_producto($item['producto'] ?? '', 'Articulo'));
+            if ($articuloTela === '') {
+                $articuloTela = 'Sin articulo';
+            }
+
+            if (!isset($articulosPorRangoPdf[$rangoItem])) {
+                $articulosPorRangoPdf[$rangoItem] = $articuloTela;
+            }
+        }
+    }
+
+    foreach ($productosPedido as $item) {
+        $rangoItem = (string) ($item['rango'] ?? 'sin-rango');
+        $esTela = ($item['tipo'] ?? 'producto') === 'tela';
+        $articuloItem = $esTela
+            ? trim(obtener_dato_tela_producto($item['producto'] ?? '', 'Articulo'))
+            : ($articulosPorRangoPdf[$rangoItem] ?? 'Sin articulo');
+        $articuloItem = $articuloItem !== '' ? $articuloItem : 'Sin articulo';
+
+        if (!isset($productosPorArticuloPdf[$articuloItem])) {
+            $productosPorArticuloPdf[$articuloItem] = [
                 'telas' => [],
                 'productos' => []
             ];
-            $ordenRangosPdf[] = $rangoItem;
+            $ordenArticulosPdf[] = $articuloItem;
         }
 
-        $tipoItem = ($item['tipo'] ?? 'producto') === 'tela' ? 'telas' : 'productos';
-        $productosPorRangoPdf[$rangoItem][$tipoItem][] = $item;
+        $tipoItem = $esTela ? 'telas' : 'productos';
+        $productosPorArticuloPdf[$articuloItem][$tipoItem][] = $item;
     }
 
-    foreach ($ordenRangosPdf as $rangoItem) {
-        $filasProductosPdf .= '<tr class="rango"><td colspan="2">&nbsp;</td></tr>';
-        $itemsDelRango = array_merge(
-            $productosPorRangoPdf[$rangoItem]['telas'],
-            $productosPorRangoPdf[$rangoItem]['productos']
+    foreach ($ordenArticulosPdf as $articuloItem) {
+        $grupoArticulo = $productosPorArticuloPdf[$articuloItem];
+        $itemsDelArticulo = array_merge(
+            $grupoArticulo['telas'],
+            $grupoArticulo['productos']
         );
+        $rangoTelaGrupo = !empty($grupoArticulo['telas'])
+            ? (string) ($grupoArticulo['telas'][0]['rango'] ?? '')
+            : '';
+        $tituloArticuloPdf = $escaparPdf($articuloItem);
+        if ($rangoTelaGrupo !== '') {
+            $tituloArticuloPdf .= ' <span class="rango-tela">- Rango: ' . $escaparPdf($rangoTelaGrupo) . '</span>';
+        }
+        $filasProductosPdf .= '<tr class="rango"><td colspan="2">' . $tituloArticuloPdf . '</td></tr>';
 
-        foreach ($itemsDelRango as $item) {
+        foreach ($itemsDelArticulo as $item) {
             $precio = obtener_precio_item($item['precio'] ?? '', $item['producto'] ?? '');
             $precioMostrar = obtener_precio_mostrar_item($precio, $item['tipo'] ?? 'producto');
             $nombreProductoPdf = limpiar_nombre_producto_exportacion($item['producto'] ?? '', $precio);
@@ -580,6 +610,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         .productos td { border: 1px solid #d6dee8; padding: 7px 8px; vertical-align: top; }
         .productos .precio { width: 18%; text-align: right; white-space: nowrap; }
         .productos .rango td { border-top: 2px solid #0f766e; border-bottom: 0; padding: 8px; color: #0f766e; font-weight: bold; background: #eef6f4; }
+        .productos .rango .rango-tela { font-weight: normal; }
         .total td { font-weight: bold; background: #e3f3ef; }
     </style></head><body>';
     $nombreClientePdf = (string) ($clienteMostrado['nombre'] ?? $usuarioBuscado);
@@ -844,6 +875,10 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
             margin-top: 0;
         }
 
+        .rango-tela {
+            font-weight: 400;
+        }
+
         .fila-producto {
             display: grid;
             grid-template-columns: 1fr auto;
@@ -947,7 +982,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
 <body>
     <main class="contenedor">
         <section class="tarjeta">
-            <h1>Detalle de cliente<?php echo is_array($clienteMostrado) && trim((string) ($clienteMostrado['nombre'] ?? '')) !== '' ? ' - ' . htmlspecialchars((string) $clienteMostrado['nombre'], ENT_QUOTES, 'UTF-8') : ''; ?></h1>
+            <h1>Pedidos y detalle de<?php echo is_array($clienteMostrado) && trim((string) ($clienteMostrado['nombre'] ?? '')) !== '' ? ' : ' . htmlspecialchars((string) $clienteMostrado['nombre'], ENT_QUOTES, 'UTF-8') : ''; ?></h1>
 
             <form class="formulario" method="get" action="ver_cliente.php">
                 <div class="campo">
@@ -972,7 +1007,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                 <div class="acciones-form">
                     <a class="boton" href="seleccion_producto.php<?php echo $usuarioBuscado !== '' ? '?usuario=' . urlencode($usuarioBuscado) . '&pedido=nuevo' : ''; ?>">Nuevo pedido</a>
                     <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
-                        <a class="boton" href="seleccion_producto.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>">Modificar pedido</a>
+                        <a class="boton" href="seleccion_producto.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>">Editar pedido</a>
                         <button class="boton boton-peligro" type="submit" form="formEliminarPedido" onclick="return confirm('Se eliminara todo el pedido seleccionado. Desea continuar?');">Eliminar pedido</button>
                     <?php endif; ?>
                     <?php if ($usuarioBuscado !== ''): ?>
@@ -1025,51 +1060,83 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                 <?php if (!empty($productosPedido)): ?>
                     <div class="productos">
                         <?php
-                            $productosPorRango = [];
-                            $ordenRangos = [];
+                            $articulosPorRango = [];
+                            $productosPorArticulo = [];
+                            $ordenArticulos = [];
 
                             foreach ($productosPedido as $item) {
                                 $rangoItem = (string) ($item['rango'] ?? 'sin-rango');
-                                if (!isset($productosPorRango[$rangoItem])) {
-                                    $productosPorRango[$rangoItem] = [
+                                if (($item['tipo'] ?? 'producto') === 'tela') {
+                                    $articuloTela = trim(obtener_dato_tela_producto($item['producto'] ?? '', 'Articulo'));
+                                    if ($articuloTela === '') {
+                                        $articuloTela = 'Sin articulo';
+                                    }
+
+                                    if (!isset($articulosPorRango[$rangoItem])) {
+                                        $articulosPorRango[$rangoItem] = $articuloTela;
+                                    }
+                                }
+                            }
+
+                            foreach ($productosPedido as $item) {
+                                $rangoItem = (string) ($item['rango'] ?? 'sin-rango');
+                                $esTela = ($item['tipo'] ?? 'producto') === 'tela';
+                                $articuloItem = $esTela
+                                    ? trim(obtener_dato_tela_producto($item['producto'] ?? '', 'Articulo'))
+                                    : ($articulosPorRango[$rangoItem] ?? 'Sin articulo');
+                                $articuloItem = $articuloItem !== '' ? $articuloItem : 'Sin articulo';
+
+                                if (!isset($productosPorArticulo[$articuloItem])) {
+                                    $productosPorArticulo[$articuloItem] = [
                                         'telas' => [],
                                         'productos' => []
                                     ];
-                                    $ordenRangos[] = $rangoItem;
+                                    $ordenArticulos[] = $articuloItem;
                                 }
 
-                                $tipoItem = ($item['tipo'] ?? 'producto') === 'tela' ? 'telas' : 'productos';
-                                $productosPorRango[$rangoItem][$tipoItem][] = $item;
+                                $tipoItem = $esTela ? 'telas' : 'productos';
+                                $productosPorArticulo[$articuloItem][$tipoItem][] = $item;
                             }
 
-                            foreach ($ordenRangos as $rangoItem):
-                                $itemsDelRango = array_merge(
-                                    $productosPorRango[$rangoItem]['telas'],
-                                    $productosPorRango[$rangoItem]['productos']
+                            foreach ($ordenArticulos as $articuloItem):
+                                $grupoArticulo = $productosPorArticulo[$articuloItem];
+                                $itemsDelArticulo = array_merge(
+                                    $grupoArticulo['telas'],
+                                    $grupoArticulo['productos']
                                 );
+                                $rangoTelaGrupo = !empty($grupoArticulo['telas'])
+                                    ? (string) ($grupoArticulo['telas'][0]['rango'] ?? '')
+                                    : '';
                         ?>
                             <div class="encabezado-rango">
-                                <?php echo htmlspecialchars($rangoItem === 'sin-rango' ? 'Sin rango' : 'Rango ' . $rangoItem, ENT_QUOTES, 'UTF-8'); ?>
+                                <?php echo htmlspecialchars($articuloItem, ENT_QUOTES, 'UTF-8'); ?>
+                                <?php if ($rangoTelaGrupo !== ''): ?>
+                                    <span class="rango-tela"> - Rango: <?php echo htmlspecialchars($rangoTelaGrupo, ENT_QUOTES, 'UTF-8'); ?></span>
+                                <?php endif; ?>
                             </div>
-                            <?php foreach ($itemsDelRango as $item): ?>
+                            <?php foreach ($itemsDelArticulo as $item): ?>
                                 <?php
                                     $precioProducto = obtener_precio_item($item['precio'] ?? '', $item['producto'] ?? '');
                                     $precioProductoMostrar = obtener_precio_mostrar_item($precioProducto, $item['tipo'] ?? 'producto');
-                                    $pesoTelaMostrar = trim((string) ($item['pesoTela'] ?? ''));
-                                    $productoMostrar = preg_replace('/\s*\|\s*Peso\s*:\s*[^|]*/i', '', (string) ($item['producto'] ?? ''));
-                                    $nombreProductoMostrar = limpiar_nombre_producto_exportacion($productoMostrar, $precioProducto);
-                                    if (($item['tipo'] ?? '') === 'tela' && $pesoTelaMostrar !== '') {
-                                        $nombreProductoMostrar .= ' | Peso: ' . $pesoTelaMostrar;
+                                    if (($item['tipo'] ?? '') === 'tela') {
+                                        $nombreProductoMostrar = 'Tela ' . obtener_dato_tela_producto($item['producto'] ?? '', 'Articulo')
+                                            . ' | Muestrario: ' . obtener_dato_tela_producto($item['producto'] ?? '', 'Muestrario')
+                                            . ' | Composicion: ' . obtener_dato_tela_producto($item['producto'] ?? '', 'Composicion');
+                                    } else {
+                                        $productoMostrar = preg_replace('/\s*\|\s*Peso\s*:\s*[^|]*/i', '', (string) ($item['producto'] ?? ''));
+                                        $nombreProductoMostrar = limpiar_nombre_producto_exportacion($productoMostrar, $precioProducto);
                                     }
                                 ?>
                                 <div class="fila-producto">
-                                    <div class="nombre-producto"><?php echo htmlspecialchars($nombreProductoMostrar, ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <div class="precio-producto">
+                                    <div class="nombre-producto">
+                                        <?php echo htmlspecialchars($nombreProductoMostrar, ENT_QUOTES, 'UTF-8'); ?>
                                         <?php if (($item['tipo'] ?? '') === 'tela' && ($item['foto'] ?? '') !== ''): ?>
                                             <button class="boton-foto-tela" type="button" data-foto-tela="<?php echo htmlspecialchars($item['foto'], ENT_QUOTES, 'UTF-8'); ?>" aria-label="Ampliar foto de la tela">
                                                 <img class="foto-tela" src="<?php echo htmlspecialchars($item['foto'], ENT_QUOTES, 'UTF-8'); ?>" alt="Foto de la tela">
                                             </button>
                                         <?php endif; ?>
+                                    </div>
+                                    <div class="precio-producto">
                                         <?php echo htmlspecialchars($precioProductoMostrar, ENT_QUOTES, 'UTF-8'); ?>
                                     </div>
                                 </div>

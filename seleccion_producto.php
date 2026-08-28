@@ -1,6 +1,6 @@
 <?php
 /*
-20-08-2026  desde PC
+28-08-2026  desde PC
 Archivo: seleccion_producto.php
 Descripción: Página para seleccionar productos y telas para un pedido de un cliente.
 */
@@ -47,6 +47,11 @@ function producto_marcado_por_prefijo($prefijoProducto, array $productosPedidoAc
 function formatear_precio_mostrar($precio)
 {
 	return number_format((float) $precio, 0, ',', '.');
+}
+
+function limpiar_traduccion_titulo($titulo)
+{
+	return trim((string) preg_replace('/\s*\([^)]*\)/', '', (string) $titulo));
 }
 
 if ($usuarioSeleccionado !== '') {
@@ -240,6 +245,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_pedido'])) {
 					}
 
 					$esEdicionPedidoExistente = true;
+					header('Location: inicio.php?v=' . urlencode((string) time()));
+					exit;
 				} else {
 					mysqli_rollback($conexion);
 					$mensajePedido = 'No se pudo guardar el pedido completo.';
@@ -275,6 +282,7 @@ $datosAccesorios = [];
 $errorAccesorios = '';
 $datosTelas = [];
 $datosTelasPorMuestrario = [];
+$articulosTelasPorRango = [];
 
 foreach ($productosObjetivo as $item) {
 	$datosPorProducto[$item['db']] = [];
@@ -374,6 +382,17 @@ if ($resultadoTelas) {
 		}
 
 		$datosTelasPorMuestrario[$claveMuestrario][] = $filaTela;
+		$rangoTela = trim((string) ($filaTela['rango'] ?? ''));
+		$articuloTela = trim((string) ($filaTela['articulo'] ?? ''));
+		if ($rangoTela !== '' && $articuloTela !== '') {
+			if (!isset($articulosTelasPorRango[$rangoTela])) {
+				$articulosTelasPorRango[$rangoTela] = [];
+			}
+
+			if (!in_array($articuloTela, $articulosTelasPorRango[$rangoTela], true)) {
+				$articulosTelasPorRango[$rangoTela][] = $articuloTela;
+			}
+		}
 	}
 	mysqli_free_result($resultadoTelas);
 } else {
@@ -535,6 +554,11 @@ if ($resultadoTelas) {
 			text-align: left;
 		}
 
+		.acordeon-telas {
+			background: #d0bfbf;
+			color: #0d1813;
+		}
+
 		.acordeon-linea:focus-visible {
 			outline: 2px solid #0f766e;
 			outline-offset: -2px;
@@ -643,6 +667,18 @@ if ($resultadoTelas) {
 			margin: 6px 0;
 		}
 
+		#listaPedido li.item-pedido {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 16px;
+		}
+
+		#listaPedido li.item-pedido .precio-item {
+			margin-left: auto;
+			white-space: nowrap;
+		}
+
 		#listaPedido li.encabezado-rango {
 			margin: 14px 0 6px;
 			padding-bottom: 4px;
@@ -654,6 +690,10 @@ if ($resultadoTelas) {
 
 		#listaPedido li.encabezado-rango:first-child {
 			margin-top: 0;
+		}
+
+		#listaPedido li.encabezado-rango .rango-tela {
+			font-weight: 400;
 		}
 
 		.total-pedido {
@@ -852,7 +892,7 @@ if ($resultadoTelas) {
 		<?php endif; ?>
 
 		<section class="panel-pedido">
-			<h2>Lista de productos y telas del pedido</h2>
+			<h2>Lista telas y productos seleccionados</h2>
 			<?php if ($mensajePedido !== ''): ?>
 				<p class="mensaje-pedido <?php echo htmlspecialchars($tipoMensajePedido, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($mensajePedido, ENT_QUOTES, 'UTF-8'); ?></p>
 			<?php endif; ?>
@@ -868,22 +908,21 @@ if ($resultadoTelas) {
 				<input type="hidden" id="modoEdicionPedido" value="<?php echo $esEdicionPedidoExistente ? '1' : '0'; ?>">
 				<input type="hidden" id="itemsSeleccionadosInput" name="items_seleccionados" value="">
 				<div class="acciones-pedido">
-					<button type="submit" name="guardar_pedido" id="botonGuardarPedido" class="boton-guardar" disabled><?php echo $esEdicionPedidoExistente ? 'Guardar cambios del pedido' : 'Guardar pedido en base de datos'; ?></button>
-					<a class="boton-finalizar" href="ver_cliente.php<?php echo $usuarioSeleccionado !== '' ? '?usuario=' . urlencode($usuarioSeleccionado) . '&pedido=' . urlencode((string) $pedidoSeleccionado) : ''; ?>">Finalizar pedido</a>
+					<button type="submit" name="guardar_pedido" id="botonGuardarPedido" class="boton-guardar" disabled>Guardar y volver</button>
 				</div>
 			</form>
 		</section>
 
 		<section class="bloque-tabla abierta">
-			<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="true">
-				<strong>Fabric types (Telas)</strong>
+			<div class="acordeon-linea acordeon-telas" role="button" tabindex="0" aria-expanded="true">
+				<strong>Telas</strong>
 				<span class="acordeon-flecha">▼</span>
 			</div>
 			<?php if (!empty($datosTelasPorMuestrario)): ?>
 				<div class="tabla-wrapper">
 					<?php foreach ($datosTelasPorMuestrario as $nombreMuestrario => $filasMuestrario): ?>
 						<section class="bloque-tabla">
-							<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
+							<div class="acordeon-linea acordeon-telas" role="button" tabindex="0" aria-expanded="false">
 								<span><?php echo htmlspecialchars('Muestrario: ' . $nombreMuestrario, ENT_QUOTES, 'UTF-8'); ?></span>
 								<span class="acordeon-flecha">▼</span>
 							</div>
@@ -911,6 +950,7 @@ if ($resultadoTelas) {
 												$rangoTela = trim((string) ($filaTela['rango'] ?? '-'));
 												$paginaTela = trim((string) ($filaTela['pagina'] ?? '-'));
 												$textoTela = 'Tela | Articulo: ' . $articuloTela . ' | Muestrario: ' . $muestrarioTela . ' | Composicion: ' . $composicionTela . ' | Peso: ' . $pesoTela . ' | Rango: ' . $rangoTela . ' | Pagina: ' . $paginaTela;
+												$textoTelaMostrar = 'Tela ' . $articuloTela . ' | Muestrario: ' . $muestrarioTela . ' | Composicion: ' . $composicionTela;
 												$fotoValor = trim((string) ($filaTela['foto'] ?? ''));
 												$rutaFoto = '';
 
@@ -950,8 +990,9 @@ if ($resultadoTelas) {
 														type="checkbox"
 														class="check-producto"
 														data-tipo="tela"
+														data-articulo="<?php echo htmlspecialchars($articuloTela, ENT_QUOTES, 'UTF-8'); ?>"
 														data-rango="<?php echo htmlspecialchars($rangoTela, ENT_QUOTES, 'UTF-8'); ?>"
-														data-item="<?php echo htmlspecialchars($textoTela, ENT_QUOTES, 'UTF-8'); ?>"
+																data-item="<?php echo htmlspecialchars($textoTelaMostrar, ENT_QUOTES, 'UTF-8'); ?>"
 														data-producto="<?php echo htmlspecialchars($textoTela, ENT_QUOTES, 'UTF-8'); ?>"
 														data-precio="0"
 														<?php echo $estaSeleccionado ? 'checked' : ''; ?>
@@ -970,12 +1011,12 @@ if ($resultadoTelas) {
 			<?php endif; ?>
 		</section>
 
-		<h2 class="titulo-seccion-productos">Daywear (ropa de dia)</h2>
+		<h2 class="titulo-seccion-productos">Daywear</h2>
 
 		<?php foreach ($productosObjetivo as $producto): ?>
 			<section class="bloque-tabla">
 				<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
-					<span><?php echo htmlspecialchars($producto['titulo'], ENT_QUOTES, 'UTF-8'); ?></span>
+					<span><?php echo htmlspecialchars(limpiar_traduccion_titulo($producto['titulo']), ENT_QUOTES, 'UTF-8'); ?></span>
 					<span class="acordeon-flecha">▼</span>
 				</div>
 				<?php if (!empty($datosPorProducto[$producto['db']])): ?>
@@ -984,6 +1025,7 @@ if ($resultadoTelas) {
 							<thead>
 								<tr>
 									<th rowspan="2">Price range</th>
+									<th rowspan="2">Articulo</th>
 									<th>Single Breasted</th>
 									<th>Double Breasted</th>
 									<th>Special</th>
@@ -1018,6 +1060,7 @@ if ($resultadoTelas) {
 									?>
 									<tr class="fila-producto-rango" data-rango="<?php echo $rangoProducto; ?>">
 										<td><?php echo $rangoProducto; ?></td>
+										<td class="articulos-rango" data-articulos-disponibles="<?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoProducto] ?? []), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoProducto] ?? []), ENT_QUOTES, 'UTF-8'); ?></td>
 										<td class="cell-check">
 											<label class="precio-opcion">
 												<span><?php echo $precioUnBotonMostrar; ?></span>
@@ -1026,6 +1069,7 @@ if ($resultadoTelas) {
 												class="check-producto"
 												data-tipo="producto"
 												data-rango="<?php echo $rangoProducto; ?>"
+														data-articulos="<?php echo htmlspecialchars(implode(',', $articulosTelasPorRango[(string) $rangoProducto] ?? []), ENT_QUOTES, 'UTF-8'); ?>"
 												data-grupo-fila="<?php echo htmlspecialchars($grupoFilaProducto, ENT_QUOTES, 'UTF-8'); ?>"
 												data-item="<?php echo htmlspecialchars($textoProductoUnBotonMostrar, ENT_QUOTES, 'UTF-8'); ?>"
 												data-producto="<?php echo htmlspecialchars($textoProductoUnBoton, ENT_QUOTES, 'UTF-8'); ?>"
@@ -1083,7 +1127,7 @@ if ($resultadoTelas) {
 			<?php endif; ?>
 			<section class="bloque-tabla">
 				<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
-					<span><?php echo htmlspecialchars($productoUnPrecio['titulo'], ENT_QUOTES, 'UTF-8'); ?></span>
+					<span><?php echo htmlspecialchars(limpiar_traduccion_titulo($productoUnPrecio['titulo']), ENT_QUOTES, 'UTF-8'); ?></span>
 					<span class="acordeon-flecha">▼</span>
 				</div>
 				<?php if (!empty($datosUnPrecio[$productoUnPrecio['db']])): ?>
@@ -1092,6 +1136,7 @@ if ($resultadoTelas) {
 							<thead>
 								<tr>
 									<th>Price range</th>
+										<th>Articulo</th>
 									<th>SRP</th>
 									<th class="col-seleccion">Agregar</th>
 								</tr>
@@ -1106,6 +1151,7 @@ if ($resultadoTelas) {
 									?>
 									<tr class="fila-producto-rango" data-rango="<?php echo (int) $filaUnPrecio['rango']; ?>">
 										<td><?php echo (int) $filaUnPrecio['rango']; ?></td>
+										<td class="articulos-rango" data-articulos-disponibles="<?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) (int) $filaUnPrecio['rango']] ?? []), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) (int) $filaUnPrecio['rango']] ?? []), ENT_QUOTES, 'UTF-8'); ?></td>
 										<td><?php echo $precioUnicoMostrar; ?></td>
 										<td class="cell-check">
 											<?php $estaSeleccionado = producto_marcado_en_pedido($textoProductoUnPrecio, $productosSeleccionadosMapa, $productosPedidoActual); ?>
@@ -1114,6 +1160,7 @@ if ($resultadoTelas) {
 												class="check-producto"
 												data-tipo="producto"
 												data-rango="<?php echo (int) $filaUnPrecio['rango']; ?>"
+														data-articulos="<?php echo htmlspecialchars(implode(',', $articulosTelasPorRango[(string) (int) $filaUnPrecio['rango']] ?? []), ENT_QUOTES, 'UTF-8'); ?>"
 												data-item="<?php echo htmlspecialchars($textoProductoUnPrecioMostrar, ENT_QUOTES, 'UTF-8'); ?>"
 												data-producto="<?php echo htmlspecialchars($textoProductoUnPrecio, ENT_QUOTES, 'UTF-8'); ?>"
 												data-precio="<?php echo $precioUnico; ?>"
@@ -1133,7 +1180,7 @@ if ($resultadoTelas) {
 			<?php if ($productoUnPrecio['db'] === 'chaleco'): ?>
 				<section class="bloque-tabla">
 					<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
-						<span>Overcoat (Sobretodos)</span>
+						<span>Overcoat</span>
 						<span class="acordeon-flecha">▼</span>
 					</div>
 					<?php if (!empty($datosSobretodo)): ?>
@@ -1142,6 +1189,7 @@ if ($resultadoTelas) {
 								<thead>
 									<tr>
 										<th>Rango</th>
+										<th>Articulo</th>
 										<th>Categoria 1</th>
 										<th>Categoria 2</th>
 										<th>Categoria 3</th>
@@ -1171,6 +1219,7 @@ if ($resultadoTelas) {
 										?>
 										<tr class="fila-producto-rango" data-rango="<?php echo $rangoSobretodo; ?>">
 											<td><?php echo $rangoSobretodo; ?></td>
+											<td class="articulos-rango" data-articulos-disponibles="<?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoSobretodo] ?? []), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoSobretodo] ?? []), ENT_QUOTES, 'UTF-8'); ?></td>
 											<td class="cell-check">
 												<label class="precio-opcion">
 													<span><?php echo $precioCategoria1Mostrar; ?></span>
@@ -1179,6 +1228,7 @@ if ($resultadoTelas) {
 													class="check-producto"
 														data-tipo="producto"
 														data-rango="<?php echo $rangoSobretodo; ?>"
+															data-articulos="<?php echo htmlspecialchars(implode(',', $articulosTelasPorRango[(string) $rangoSobretodo] ?? []), ENT_QUOTES, 'UTF-8'); ?>"
 													data-grupo-fila="<?php echo htmlspecialchars($grupoFilaSobretodo, ENT_QUOTES, 'UTF-8'); ?>"
 													data-item="<?php echo htmlspecialchars($textoSobretodoCategoria1Mostrar, ENT_QUOTES, 'UTF-8'); ?>"
 													data-producto="<?php echo htmlspecialchars($textoSobretodoCategoria1, ENT_QUOTES, 'UTF-8'); ?>"
@@ -1351,8 +1401,9 @@ if ($resultadoTelas) {
 			var checksSeleccionados = Array.prototype.slice.call(document.querySelectorAll('.check-producto:checked'));
 			var itemsGuardar = [];
 			var totalPedido = 0;
-			var gruposPorRango = {};
-			var ordenGrupos = [];
+			var articulosPorRango = {};
+			var gruposPorArticulo = {};
+			var ordenArticulos = [];
 
 			checksSeleccionados.sort(function (a, b) {
 				var ordenA = parseInt(a.getAttribute('data-orden-seleccion') || '0', 10);
@@ -1366,32 +1417,49 @@ if ($resultadoTelas) {
 			});
 
 			checksSeleccionados.forEach(function (check) {
+				var tipo = check.getAttribute('data-tipo') || 'producto';
+				if (tipo !== 'tela') {
+					return;
+				}
+
+				var rangoTela = check.getAttribute('data-rango') || 'sin-rango';
+				var articuloTela = check.getAttribute('data-articulo') || 'Sin articulo';
+				if (!articulosPorRango[rangoTela]) {
+					articulosPorRango[rangoTela] = articuloTela;
+				}
+			});
+
+			checksSeleccionados.forEach(function (check) {
 				var itemTexto = check.getAttribute('data-item') || '';
 				var producto = check.getAttribute('data-producto') || '';
 				var precio = parseFloat(check.getAttribute('data-precio') || '0');
 				var precioValido = isNaN(precio) ? 0 : precio;
 				var tipo = check.getAttribute('data-tipo') || 'producto';
 				var rango = check.getAttribute('data-rango') || 'sin-rango';
+				var articulo = check.getAttribute('data-articulo') || (tipo === 'tela'
+					? 'Sin articulo'
+					: (articulosPorRango[rango] || 'Sin articulo'));
 				if (itemTexto === '') {
 					return;
 				}
 
-				if (!gruposPorRango[rango]) {
-					gruposPorRango[rango] = {
+				if (!gruposPorArticulo[articulo]) {
+					gruposPorArticulo[articulo] = {
 						telas: [],
 						productos: []
 					};
-					ordenGrupos.push(rango);
+					ordenArticulos.push(articulo);
 				}
 
 				if (tipo === 'tela') {
-					gruposPorRango[rango].telas.push({
+					gruposPorArticulo[articulo].telas.push({
 						itemTexto: itemTexto,
 						producto: producto,
-						precio: precioValido
+						precio: precioValido,
+						rango: rango
 					});
 				} else {
-					gruposPorRango[rango].productos.push({
+					gruposPorArticulo[articulo].productos.push({
 						itemTexto: itemTexto,
 						producto: producto,
 						precio: precioValido
@@ -1399,20 +1467,29 @@ if ($resultadoTelas) {
 				}
 			});
 
-			ordenGrupos.forEach(function (rangoGrupo) {
-				var grupo = gruposPorRango[rangoGrupo];
+			ordenArticulos.forEach(function (articuloGrupo) {
+				var grupo = gruposPorArticulo[articuloGrupo];
 				var itemsGrupo = grupo.telas.concat(grupo.productos);
-				var encabezadoRango = document.createElement('li');
-				encabezadoRango.className = 'encabezado-rango';
-				encabezadoRango.textContent = rangoGrupo === 'sin-rango' ? 'Sin rango' : 'Rango ' + rangoGrupo;
-				listaPedido.appendChild(encabezadoRango);
+				var encabezadoArticulo = document.createElement('li');
+				encabezadoArticulo.className = 'encabezado-rango';
+				encabezadoArticulo.appendChild(document.createTextNode(articuloGrupo));
+				if (grupo.telas.length > 0) {
+					var rangoTela = document.createElement('span');
+					rangoTela.className = 'rango-tela';
+					rangoTela.textContent = ' - Rango: ' + grupo.telas[0].rango;
+					encabezadoArticulo.appendChild(rangoTela);
+				}
+				listaPedido.appendChild(encabezadoArticulo);
 
 				itemsGrupo.forEach(function (item) {
 					var li = document.createElement('li');
+					li.className = 'item-pedido';
 					var partesTexto = item.itemTexto.split(' | Precio: ');
 					if (partesTexto.length > 1) {
-						li.appendChild(document.createTextNode(partesTexto.shift() + ' | Precio: '));
+						var textoProducto = partesTexto.shift().replace(/ \| Rango: [^|]+/, '');
+						li.appendChild(document.createTextNode(textoProducto));
 						var precioNegrita = document.createElement('strong');
+						precioNegrita.className = 'precio-item';
 						precioNegrita.textContent = partesTexto.join(' | Precio: ');
 						li.appendChild(precioNegrita);
 					} else {
@@ -1490,39 +1567,82 @@ if ($resultadoTelas) {
 		});
 
 		var actualizarProductosPorRango = function () {
-			var rangosTelasSeleccionadas = [];
+			var telasSeleccionadas = [];
 
 			document.querySelectorAll('.check-producto[data-tipo="tela"]:checked').forEach(function (tela) {
 				var rangoTela = tela.getAttribute('data-rango') || '';
-				if (rangoTela !== '' && rangosTelasSeleccionadas.indexOf(rangoTela) === -1) {
-					rangosTelasSeleccionadas.push(rangoTela);
+				var articuloTela = (tela.getAttribute('data-articulo') || '').trim();
+				if (rangoTela !== '' && articuloTela !== '') {
+					var telaSeleccionada = {
+						rango: rangoTela,
+						articulo: articuloTela
+					};
+					var telaYaIncluida = telasSeleccionadas.some(function (telaActual) {
+						return telaActual.rango === telaSeleccionada.rango
+							&& telaActual.articulo === telaSeleccionada.articulo;
+					});
+					if (!telaYaIncluida) {
+						telasSeleccionadas.push(telaSeleccionada);
+					}
 				}
 			});
 
-			document.querySelectorAll('.fila-producto-rango').forEach(function (fila) {
-				var rangoProducto = fila.getAttribute('data-rango') || '';
-				var mostrarFila = rangosTelasSeleccionadas.length === 0 || rangosTelasSeleccionadas.indexOf(rangoProducto) !== -1;
-
-				fila.style.display = mostrarFila ? '' : 'none';
+			document.querySelectorAll('.fila-producto-rango-generada').forEach(function (filaGenerada) {
+			filaGenerada.remove();
 			});
 
-			document.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
-				var filaProducto = producto.closest('.fila-producto-rango');
-				var rangoProducto = filaProducto ? filaProducto.getAttribute('data-rango') || '' : '';
-				var rangoPermitido = filaProducto === null || rangosTelasSeleccionadas.indexOf(rangoProducto) !== -1;
-				var mostrarCheckbox = rangosTelasSeleccionadas.length > 0 && rangoPermitido;
+			document.querySelectorAll('.fila-producto-rango:not(.fila-producto-rango-generada)').forEach(function (fila) {
+				var rangoProducto = fila.getAttribute('data-rango') || '';
+				var articulosCompatibles = telasSeleccionadas.filter(function (telaSeleccionada) {
+					return telaSeleccionada.rango === rangoProducto;
+				});
 
-				producto.style.display = mostrarCheckbox ? '' : 'none';
-				producto.disabled = !mostrarCheckbox;
-				if (!mostrarCheckbox && filaProducto && !rangoPermitido) {
+				if (telasSeleccionadas.length === 0) {
+					fila.style.display = '';
+					fila.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
+						producto.style.display = 'none';
+						producto.disabled = true;
+					});
+					return;
+				}
+
+				fila.style.display = 'none';
+				fila.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
+					producto.disabled = true;
+				});
+
+				var filaAnterior = fila;
+				articulosCompatibles.forEach(function (telaSeleccionada, indiceTela) {
+					var filaProducto = fila.cloneNode(true);
+					filaProducto.classList.add('fila-producto-rango-generada');
+					filaProducto.style.display = '';
+					var celdaArticulo = filaProducto.querySelector('.articulos-rango');
+					if (celdaArticulo) {
+						celdaArticulo.textContent = telaSeleccionada.articulo;
+					}
+
+					filaProducto.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
+						var productoOriginal = producto.getAttribute('data-producto') || '';
+						producto.checked = indiceTela === 0 && productoOriginal !== '' && producto.checked;
+						producto.setAttribute('data-articulo', telaSeleccionada.articulo);
+						producto.setAttribute('data-producto', productoOriginal + ' | Articulo: ' + telaSeleccionada.articulo);
+						producto.style.display = '';
+						producto.disabled = false;
+						registrarEventoCambioCheckbox(producto);
+					});
+
+					filaAnterior.insertAdjacentElement('afterend', filaProducto);
+					filaAnterior = filaProducto;
+				});
+
+				fila.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
 					producto.checked = false;
 					producto.removeAttribute('data-orden-seleccion');
-				}
+				});
 			});
 		};
 
-		document.querySelectorAll('.check-producto').forEach(function (check) {
-			check.addEventListener('change', function () {
+		var procesarCambioCheckbox = function (check) {
 				registrarOrdenSeleccion(check);
 				var grupoFila = check.getAttribute('data-grupo-fila') || '';
 
@@ -1537,7 +1657,19 @@ if ($resultadoTelas) {
 
 				actualizarProductosPorRango();
 				actualizarListaPedido();
-			});
+		};
+
+		var registrarEventoCambioCheckbox = function (check) {
+			if (!check.dataset.eventoCambioRegistrado) {
+				check.addEventListener('change', function () {
+					procesarCambioCheckbox(check);
+				});
+				check.dataset.eventoCambioRegistrado = '1';
+			}
+		};
+
+		document.querySelectorAll('.check-producto').forEach(function (check) {
+			registrarEventoCambioCheckbox(check);
 		});
 
 		var cerrarVisorImagen = function () {
