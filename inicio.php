@@ -1,5 +1,5 @@
 <?php
-/** 26-08-2026 desde laptop
+/** 28-08-2026 desde PC
  * inicio.php
  *
  * Página de inicio del administrador.
@@ -262,6 +262,75 @@ if ($stmtClientes) {
             padding: 24px;
         }
 
+        .bloqueo-acceso {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.78);
+        }
+
+        .dialogo-acceso {
+            width: min(100%, 360px);
+            padding: 28px;
+            background: #ffffff;
+            border: 1px solid var(--borde);
+            border-radius: 10px;
+            box-shadow: var(--sombra);
+            text-align: center;
+        }
+
+        .dialogo-acceso h1 {
+            margin: 0 0 8px;
+            font-size: 1.35rem;
+        }
+
+        .dialogo-acceso p {
+            margin: 0 0 18px;
+            color: #64748b;
+        }
+
+        .campo-clave-acceso {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--borde);
+            border-radius: 6px;
+            font: inherit;
+            text-align: center;
+        }
+
+        .campo-clave-acceso:focus {
+            border-color: var(--acento);
+            outline: 2px solid rgba(2, 132, 199, 0.2);
+        }
+
+        .boton-acceso {
+            width: 100%;
+            margin-top: 14px;
+            padding: 10px 14px;
+            border: 0;
+            border-radius: 6px;
+            background: var(--acento);
+            color: #ffffff;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .boton-acceso:hover {
+            background: var(--acento-hover);
+        }
+
+        .error-acceso {
+            min-height: 20px;
+            margin: 10px 0 0;
+            color: #b91c1c;
+            font-size: 0.88rem;
+        }
+
         @media (min-width: 768px) {
             .btn-tool {
                 padding: 5px 10px;
@@ -300,6 +369,16 @@ if ($stmtClientes) {
 </head>
 <body>
 
+    <div class="bloqueo-acceso" id="bloqueo-acceso">
+        <form class="dialogo-acceso" id="formulario-acceso">
+            <h1>Acceso requerido</h1>
+            <p>Introduzca la clave para continuar.</p>
+            <input class="campo-clave-acceso" id="clave-acceso" type="password" value="" autocomplete="off" aria-label="Clave de acceso" autofocus>
+            <button class="boton-acceso" type="submit">Confirmar</button>
+            <p class="error-acceso" id="error-acceso" role="alert" aria-live="polite"></p>
+        </form>
+    </div>
+
     <!-- BARRA SUPERIOR CON MENÚ Y BÚSQUEDA DESPLEGABLE -->
     <header class="app-header">
         <div class="app-title">
@@ -333,6 +412,7 @@ if ($stmtClientes) {
             <a class="btn-tool" href="listini.php">Lista precios</a>
             <a class="btn-tool" href="telas.php">Muestrario telas</a>
             <a class="btn-tool" href="reportes.php">Reporte ventas</a>
+            <a class="btn-tool" href="backup.php">Backup</a>
         </nav>
     </header>
 
@@ -342,6 +422,55 @@ if ($stmtClientes) {
     </main>
 
     <script>
+        (function () {
+            const bloqueo = document.getElementById('bloqueo-acceso');
+            const formulario = document.getElementById('formulario-acceso');
+            const clave = document.getElementById('clave-acceso');
+            const error = document.getElementById('error-acceso');
+            const claveCorrecta = 'rasetta';
+            const navegacion = performance.getEntriesByType('navigation')[0];
+            const esRecarga = navegacion && navegacion.type === 'reload';
+            const accesoConcedido = sessionStorage.getItem('rasettaAccesoConcedido') === 'true';
+
+            if (accesoConcedido && !esRecarga) {
+                bloqueo.remove();
+                return;
+            }
+
+            if (esRecarga) {
+                sessionStorage.removeItem('rasettaAccesoConcedido');
+            }
+
+            document.body.style.overflow = 'hidden';
+
+            formulario.addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                if (clave.value === claveCorrecta) {
+                    sessionStorage.setItem('rasettaAccesoConcedido', 'true');
+                    bloqueo.remove();
+                    document.body.style.overflow = '';
+                    return;
+                }
+
+                error.textContent = 'La clave no es correcta.';
+                clave.select();
+            });
+
+            bloqueo.addEventListener('click', function (event) {
+                if (event.target === bloqueo) {
+                    clave.focus();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (document.body.contains(bloqueo) && event.key === 'Escape') {
+                    event.preventDefault();
+                    clave.focus();
+                }
+            });
+        })();
+
         (function () {
             const queryActual = window.location.search;
             const tieneTokenManual = /^\?v\d+$/i.test(queryActual);
@@ -397,14 +526,6 @@ if ($stmtClientes) {
             });
         });
 
-        window.addEventListener('pageshow', function (event) {
-            const nav = performance.getEntriesByType('navigation');
-            const esBackForward = nav.length > 0 && nav[0].type === 'back_forward';
-            if (event.persisted || esBackForward) {
-                const token = 'v' + Date.now().toString() + Math.floor(Math.random() * 100000).toString();
-                window.location.replace('inicio.php?' + token);
-            }
-        });
     </script>
 </body>
 </html>

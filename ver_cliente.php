@@ -1,6 +1,6 @@
 <?php
 ob_start();
-/* 28-08-2026  desde PC
+/* 29-08-2026  desde Lap Top
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -648,7 +648,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         $pdf->SetTitle('Pedido de ' . $nombreClientePdf);
         $pdf->WriteHTML($htmlPdf);
         $nombreCliente = normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado);
-        $nombreArchivoPdf = $nombreCliente . '_' . (int) $pedidoSeleccionado . '.pdf';
+        $nombreArchivoPdf = 'cotizacion_' . $nombreCliente . '_' . (int) $pedidoSeleccionado . '.pdf';
         $pdf->Output($archivoTemporalPdf, \Mpdf\Output\Destination::FILE);
 
         while (ob_get_level() > 0) {
@@ -1020,7 +1020,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                     <?php endif; ?>
                     <?php if ($usuarioBuscado !== '' && ctype_digit($pedidoSeleccionado) && (int) $pedidoSeleccionado > 0): ?>
                         <a class="boton boton-archivo" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_excel=1" download="<?php echo htmlspecialchars(normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.xlsx', ENT_QUOTES, 'UTF-8'); ?>"><img src="fotos/xls.jpg" alt="Guardar Excel"></a>
-                        <a class="boton boton-archivo" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_pdf=1&v=<?php echo urlencode((string) filemtime(__FILE__)); ?>" download="<?php echo htmlspecialchars(normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.pdf', ENT_QUOTES, 'UTF-8'); ?>"><img src="fotos/pdf.jpg" alt="Guardar PDF"></a>
+                        <a class="boton boton-archivo" href="ver_cliente.php?usuario=<?php echo urlencode($usuarioBuscado); ?>&pedido=<?php echo urlencode($pedidoSeleccionado); ?>&exportar_pdf=1&v=<?php echo urlencode((string) filemtime(__FILE__)); ?>" download="<?php echo htmlspecialchars('cotizacion_' . normalizar_nombre_archivo($clienteMostrado['nombre'] ?? $usuarioBuscado) . '_' . (int) $pedidoSeleccionado . '.pdf', ENT_QUOTES, 'UTF-8'); ?>"><img src="fotos/pdf.jpg" alt="Guardar PDF"></a>
                         <a class="boton" href="envia_brioni.php?<?php echo htmlspecialchars(http_build_query(['usuario' => $usuarioBuscado, 'pedido' => $pedidoSeleccionado]), ENT_QUOTES, 'UTF-8'); ?>">Brioni</a>
                     <?php endif; ?>
                     <a class="boton" id="btnVolverInicio" href="inicio.php">Volver</a>

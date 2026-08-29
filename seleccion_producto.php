@@ -1,6 +1,6 @@
 <?php
 /*
-28-08-2026  desde PC
+29-08-2026  desde Laptop
 Archivo: seleccion_producto.php
 Descripción: Página para seleccionar productos y telas para un pedido de un cliente.
 */
@@ -24,7 +24,7 @@ function producto_marcado_en_pedido($textoProducto, array $productosSeleccionado
 
 	foreach ($productosPedidoActual as $itemPedidoActual) {
 		$productoGuardado = trim((string) ($itemPedidoActual['producto'] ?? ''));
-		if ($productoGuardado !== '' && strpos($textoProducto, $productoGuardado) === 0) {
+		if ($productoGuardado !== '' && (strpos($textoProducto, $productoGuardado) === 0 || strpos($productoGuardado, $textoProducto) === 0)) {
 			return true;
 		}
 	}
@@ -686,6 +686,9 @@ if ($resultadoTelas) {
 			list-style: none;
 			font-weight: 700;
 			color: #0f766e;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
 		}
 
 		#listaPedido li.encabezado-rango:first-child {
@@ -694,6 +697,26 @@ if ($resultadoTelas) {
 
 		#listaPedido li.encabezado-rango .rango-tela {
 			font-weight: 400;
+		}
+
+		.btn-quitar-item {
+			background: transparent;
+			border: none;
+			color: #ef4444;
+			font-size: 1.25rem;
+			font-weight: 700;
+			cursor: pointer;
+			padding: 0 6px;
+			margin-left: 8px;
+			line-height: 1;
+			border-radius: 4px;
+			transition: background 0.15s, color 0.15s;
+		}
+
+		.btn-quitar-item:hover,
+		.btn-quitar-item:focus-visible {
+			background: #fee2e2;
+			color: #b91c1c;
 		}
 
 		.total-pedido {
@@ -1384,6 +1407,7 @@ if ($resultadoTelas) {
 		var imagenTelaAmpliada = document.getElementById('imagenTelaAmpliada');
 		var cerrarModalImagenTela = document.getElementById('cerrarModalImagenTela');
 		var contadorOrdenSeleccion = 0;
+		var itemsEnPedido = [];
 
 		var formatearPrecioMostrar = function (valor) {
 			return new Intl.NumberFormat('es-ES', {
@@ -1398,103 +1422,99 @@ if ($resultadoTelas) {
 			}
 
 			listaPedido.innerHTML = '';
-			var checksSeleccionados = Array.prototype.slice.call(document.querySelectorAll('.check-producto:checked'));
 			var itemsGuardar = [];
 			var totalPedido = 0;
-			var articulosPorRango = {};
 			var gruposPorArticulo = {};
 			var ordenArticulos = [];
+			var itemsSinArticulo = [];
 
-			checksSeleccionados.sort(function (a, b) {
-				var ordenA = parseInt(a.getAttribute('data-orden-seleccion') || '0', 10);
-				var ordenB = parseInt(b.getAttribute('data-orden-seleccion') || '0', 10);
-
-				if (ordenA === ordenB) {
-					return 0;
-				}
-
-				return ordenA - ordenB;
+			var itemsOrdenados = itemsEnPedido.slice().sort(function (a, b) {
+				return (a.orden || 0) - (b.orden || 0);
 			});
 
-			checksSeleccionados.forEach(function (check) {
-				var tipo = check.getAttribute('data-tipo') || 'producto';
-				if (tipo !== 'tela') {
-					return;
-				}
-
-				var rangoTela = check.getAttribute('data-rango') || 'sin-rango';
-				var articuloTela = check.getAttribute('data-articulo') || 'Sin articulo';
-				if (!articulosPorRango[rangoTela]) {
-					articulosPorRango[rangoTela] = articuloTela;
-				}
-			});
-
-			checksSeleccionados.forEach(function (check) {
-				var itemTexto = check.getAttribute('data-item') || '';
-				var producto = check.getAttribute('data-producto') || '';
-				var precio = parseFloat(check.getAttribute('data-precio') || '0');
-				var precioValido = isNaN(precio) ? 0 : precio;
-				var tipo = check.getAttribute('data-tipo') || 'producto';
-				var rango = check.getAttribute('data-rango') || 'sin-rango';
-				var articulo = check.getAttribute('data-articulo') || (tipo === 'tela'
-					? 'Sin articulo'
-					: (articulosPorRango[rango] || 'Sin articulo'));
-				if (itemTexto === '') {
+			itemsOrdenados.forEach(function (item) {
+				var articulo = item.articulo || '';
+				if (articulo === '' || articulo === 'Sin articulo') {
+					itemsSinArticulo.push(item);
 					return;
 				}
 
 				if (!gruposPorArticulo[articulo]) {
 					gruposPorArticulo[articulo] = {
+						rango: item.rango || '',
 						telas: [],
 						productos: []
 					};
 					ordenArticulos.push(articulo);
 				}
 
-				if (tipo === 'tela') {
-					gruposPorArticulo[articulo].telas.push({
-						itemTexto: itemTexto,
-						producto: producto,
-						precio: precioValido,
-						rango: rango
-					});
+				if (item.tipo === 'tela') {
+					if (item.rango) {
+						gruposPorArticulo[articulo].rango = item.rango;
+					}
+					gruposPorArticulo[articulo].telas.push(item);
 				} else {
-					gruposPorArticulo[articulo].productos.push({
-						itemTexto: itemTexto,
-						producto: producto,
-						precio: precioValido
-					});
+					gruposPorArticulo[articulo].productos.push(item);
 				}
 			});
 
 			ordenArticulos.forEach(function (articuloGrupo) {
 				var grupo = gruposPorArticulo[articuloGrupo];
 				var itemsGrupo = grupo.telas.concat(grupo.productos);
+
 				var encabezadoArticulo = document.createElement('li');
 				encabezadoArticulo.className = 'encabezado-rango';
-				encabezadoArticulo.appendChild(document.createTextNode(articuloGrupo));
-				if (grupo.telas.length > 0) {
+
+				var textoHeader = document.createElement('span');
+				textoHeader.textContent = articuloGrupo;
+				if (grupo.rango !== '') {
 					var rangoTela = document.createElement('span');
 					rangoTela.className = 'rango-tela';
-					rangoTela.textContent = ' - Rango: ' + grupo.telas[0].rango;
-					encabezadoArticulo.appendChild(rangoTela);
+					rangoTela.textContent = ' - Rango: ' + grupo.rango;
+					textoHeader.appendChild(rangoTela);
 				}
+				encabezadoArticulo.appendChild(textoHeader);
+
+				var btnQuitarArticulo = document.createElement('button');
+				btnQuitarArticulo.type = 'button';
+				btnQuitarArticulo.className = 'btn-quitar-item';
+				btnQuitarArticulo.innerHTML = '&times;';
+				btnQuitarArticulo.title = 'Quitar tela y sus productos del pedido';
+				btnQuitarArticulo.addEventListener('click', function () {
+					removerArticuloCompleto(articuloGrupo);
+				});
+				encabezadoArticulo.appendChild(btnQuitarArticulo);
+
 				listaPedido.appendChild(encabezadoArticulo);
 
 				itemsGrupo.forEach(function (item) {
 					var li = document.createElement('li');
 					li.className = 'item-pedido';
+
+					var contenidoSpan = document.createElement('span');
 					var partesTexto = item.itemTexto.split(' | Precio: ');
 					if (partesTexto.length > 1) {
 						var textoProducto = partesTexto.shift().replace(/ \| Rango: [^|]+/, '');
-						li.appendChild(document.createTextNode(textoProducto));
+						contenidoSpan.appendChild(document.createTextNode(textoProducto));
 						var precioNegrita = document.createElement('strong');
 						precioNegrita.className = 'precio-item';
-						precioNegrita.textContent = partesTexto.join(' | Precio: ');
-						li.appendChild(precioNegrita);
+						precioNegrita.textContent = ' | ' + partesTexto.join(' | Precio: ');
+						contenidoSpan.appendChild(precioNegrita);
 					} else {
-						li.textContent = item.itemTexto;
+						contenidoSpan.textContent = item.itemTexto;
 					}
+					li.appendChild(contenidoSpan);
+
+					var btnQuitar = document.createElement('button');
+					btnQuitar.type = 'button';
+					btnQuitar.className = 'btn-quitar-item';
+					btnQuitar.innerHTML = '&times;';
+					btnQuitar.title = 'Quitar del pedido';
+					btnQuitar.addEventListener('click', function () {
+						removerItemPorProducto(item.producto);
+					});
+					li.appendChild(btnQuitar);
+
 					listaPedido.appendChild(li);
 
 					if (item.producto !== '') {
@@ -1507,6 +1527,53 @@ if ($resultadoTelas) {
 					totalPedido += item.precio;
 				});
 			});
+
+			if (itemsSinArticulo.length > 0) {
+				var encabezadoOtros = document.createElement('li');
+				encabezadoOtros.className = 'encabezado-rango';
+				encabezadoOtros.textContent = 'Otros / Accesorios';
+				listaPedido.appendChild(encabezadoOtros);
+
+				itemsSinArticulo.forEach(function (item) {
+					var li = document.createElement('li');
+					li.className = 'item-pedido';
+
+					var contenidoSpan = document.createElement('span');
+					var partesTexto = item.itemTexto.split(' | Precio: ');
+					if (partesTexto.length > 1) {
+						var textoProducto = partesTexto.shift().replace(/ \| Rango: [^|]+/, '');
+						contenidoSpan.appendChild(document.createTextNode(textoProducto));
+						var precioNegrita = document.createElement('strong');
+						precioNegrita.className = 'precio-item';
+						precioNegrita.textContent = ' | ' + partesTexto.join(' | Precio: ');
+						contenidoSpan.appendChild(precioNegrita);
+					} else {
+						contenidoSpan.textContent = item.itemTexto;
+					}
+					li.appendChild(contenidoSpan);
+
+					var btnQuitar = document.createElement('button');
+					btnQuitar.type = 'button';
+					btnQuitar.className = 'btn-quitar-item';
+					btnQuitar.innerHTML = '&times;';
+					btnQuitar.title = 'Quitar del pedido';
+					btnQuitar.addEventListener('click', function () {
+						removerItemPorProducto(item.producto);
+					});
+					li.appendChild(btnQuitar);
+
+					listaPedido.appendChild(li);
+
+					if (item.producto !== '') {
+						itemsGuardar.push({
+							producto: item.producto,
+							precio: item.precio
+						});
+					}
+
+					totalPedido += item.precio;
+				});
+			}
 
 			if (totalPedidoValor) {
 				totalPedidoValor.textContent = formatearPrecioMostrar(Math.round(totalPedido));
@@ -1522,28 +1589,52 @@ if ($resultadoTelas) {
 			}
 
 			if (mensajeListaVacia) {
-				mensajeListaVacia.style.display = checksSeleccionados.length > 0 ? 'none' : 'block';
+				mensajeListaVacia.style.display = itemsEnPedido.length > 0 ? 'none' : 'block';
 			}
 		};
 
-		var asignarOrdenInicialSeleccion = function () {
-			document.querySelectorAll('.check-producto:checked').forEach(function (check) {
-				contadorOrdenSeleccion += 1;
-				check.setAttribute('data-orden-seleccion', String(contadorOrdenSeleccion));
-			});
-		};
+		var removerItemPorProducto = function (productoKey) {
+			var itemEncontrado = null;
+			for (var i = 0; i < itemsEnPedido.length; i++) {
+				if (itemsEnPedido[i].producto === productoKey) {
+					itemEncontrado = itemsEnPedido[i];
+					break;
+				}
+			}
 
-		var registrarOrdenSeleccion = function (check) {
-			if (!check) {
+			if (!itemEncontrado) {
 				return;
 			}
 
-			if (check.checked) {
-				contadorOrdenSeleccion += 1;
-				check.setAttribute('data-orden-seleccion', String(contadorOrdenSeleccion));
-			} else {
-				check.removeAttribute('data-orden-seleccion');
+			if (itemEncontrado.tipo === 'tela') {
+				removerArticuloCompleto(itemEncontrado.articulo);
+				return;
 			}
+
+			itemsEnPedido = itemsEnPedido.filter(function (it) {
+				return it.producto !== productoKey;
+			});
+
+			document.querySelectorAll('.check-producto[data-producto="' + productoKey.replace(/"/g, '\\"') + '"]').forEach(function (chk) {
+				chk.checked = false;
+				chk.removeAttribute('data-orden-seleccion');
+			});
+
+			actualizarListaPedido();
+		};
+
+		var removerArticuloCompleto = function (articulo) {
+			itemsEnPedido = itemsEnPedido.filter(function (it) {
+				return it.articulo !== articulo;
+			});
+
+			document.querySelectorAll('.check-producto[data-articulo="' + articulo.replace(/"/g, '\\"') + '"]').forEach(function (chk) {
+				chk.checked = false;
+				chk.removeAttribute('data-orden-seleccion');
+			});
+
+			actualizarProductosPorRango();
+			actualizarListaPedido();
 		};
 
 		document.querySelectorAll('.bloque-tabla').forEach(function (bloque) {
@@ -1567,40 +1658,33 @@ if ($resultadoTelas) {
 		});
 
 		var actualizarProductosPorRango = function () {
-			var telasSeleccionadas = [];
-
-			document.querySelectorAll('.check-producto[data-tipo="tela"]:checked').forEach(function (tela) {
-				var rangoTela = tela.getAttribute('data-rango') || '';
-				var articuloTela = (tela.getAttribute('data-articulo') || '').trim();
-				if (rangoTela !== '' && articuloTela !== '') {
-					var telaSeleccionada = {
-						rango: rangoTela,
-						articulo: articuloTela
-					};
-					var telaYaIncluida = telasSeleccionadas.some(function (telaActual) {
-						return telaActual.rango === telaSeleccionada.rango
-							&& telaActual.articulo === telaSeleccionada.articulo;
-					});
-					if (!telaYaIncluida) {
-						telasSeleccionadas.push(telaSeleccionada);
-					}
-				}
-			});
+			var telaActiva = document.querySelector('.check-producto[data-tipo="tela"]:checked');
 
 			document.querySelectorAll('.fila-producto-rango-generada').forEach(function (filaGenerada) {
-			filaGenerada.remove();
+				filaGenerada.remove();
 			});
 
-			document.querySelectorAll('.fila-producto-rango:not(.fila-producto-rango-generada)').forEach(function (fila) {
-				var rangoProducto = fila.getAttribute('data-rango') || '';
-				var articulosCompatibles = telasSeleccionadas.filter(function (telaSeleccionada) {
-					return telaSeleccionada.rango === rangoProducto;
-				});
-
-				if (telasSeleccionadas.length === 0) {
+			if (!telaActiva) {
+				document.querySelectorAll('.fila-producto-rango:not(.fila-producto-rango-generada)').forEach(function (fila) {
 					fila.style.display = '';
 					fila.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
 						producto.style.display = 'none';
+						producto.disabled = true;
+						producto.checked = false;
+					});
+				});
+				return;
+			}
+
+			var rangoTela = (telaActiva.getAttribute('data-rango') || '').trim();
+			var articuloTela = (telaActiva.getAttribute('data-articulo') || '').trim();
+
+			document.querySelectorAll('.fila-producto-rango:not(.fila-producto-rango-generada)').forEach(function (fila) {
+				var rangoProducto = (fila.getAttribute('data-rango') || '').trim();
+
+				if (rangoProducto !== rangoTela) {
+					fila.style.display = 'none';
+					fila.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
 						producto.disabled = true;
 					});
 					return;
@@ -1611,56 +1695,165 @@ if ($resultadoTelas) {
 					producto.disabled = true;
 				});
 
-				var filaAnterior = fila;
-				articulosCompatibles.forEach(function (telaSeleccionada, indiceTela) {
-					var filaProducto = fila.cloneNode(true);
-					filaProducto.classList.add('fila-producto-rango-generada');
-					filaProducto.style.display = '';
-					var celdaArticulo = filaProducto.querySelector('.articulos-rango');
-					if (celdaArticulo) {
-						celdaArticulo.textContent = telaSeleccionada.articulo;
-					}
+				var filaProducto = fila.cloneNode(true);
+				filaProducto.classList.add('fila-producto-rango-generada');
+				filaProducto.style.display = '';
 
-					filaProducto.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
-						var productoOriginal = producto.getAttribute('data-producto') || '';
-						producto.checked = indiceTela === 0 && productoOriginal !== '' && producto.checked;
-						producto.setAttribute('data-articulo', telaSeleccionada.articulo);
-						producto.setAttribute('data-producto', productoOriginal + ' | Articulo: ' + telaSeleccionada.articulo);
-						producto.style.display = '';
-						producto.disabled = false;
-						registrarEventoCambioCheckbox(producto);
+				var celdaArticulo = filaProducto.querySelector('.articulos-rango');
+				if (celdaArticulo) {
+					celdaArticulo.textContent = articuloTela;
+				}
+
+				filaProducto.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
+					delete producto.dataset.eventoCambioRegistrado;
+					producto.removeAttribute('data-evento-cambio-registrado');
+
+					var productoOriginal = producto.getAttribute('data-producto-base') || producto.getAttribute('data-producto') || '';
+					var itemOriginal = producto.getAttribute('data-item-base') || producto.getAttribute('data-item') || '';
+					var grupoFilaOriginal = producto.getAttribute('data-grupo-fila-base') || producto.getAttribute('data-grupo-fila') || '';
+					var productoConArticulo = productoOriginal + ' | Articulo: ' + articuloTela;
+
+					var estaEnPedido = itemsEnPedido.some(function (it) {
+						return it.producto === productoConArticulo;
 					});
 
-					filaAnterior.insertAdjacentElement('afterend', filaProducto);
-					filaAnterior = filaProducto;
+					producto.setAttribute('data-producto-base', productoOriginal);
+					producto.setAttribute('data-item-base', itemOriginal);
+					producto.setAttribute('data-articulo', articuloTela);
+					producto.setAttribute('data-producto', productoConArticulo);
+
+					if (grupoFilaOriginal !== '') {
+						producto.setAttribute('data-grupo-fila-base', grupoFilaOriginal);
+						producto.setAttribute('data-grupo-fila', grupoFilaOriginal + '-' + articuloTela.replace(/[^a-z0-9_-]/gi, '_'));
+					}
+
+					producto.checked = estaEnPedido;
+					producto.style.display = '';
+					producto.disabled = false;
+					registrarEventoCambioCheckbox(producto);
 				});
 
-				fila.querySelectorAll('.check-producto[data-tipo="producto"]').forEach(function (producto) {
-					producto.checked = false;
-					producto.removeAttribute('data-orden-seleccion');
-				});
+				fila.insertAdjacentElement('afterend', filaProducto);
 			});
 		};
 
 		var procesarCambioCheckbox = function (check) {
-				registrarOrdenSeleccion(check);
-				var grupoFila = check.getAttribute('data-grupo-fila') || '';
+			var tipo = check.getAttribute('data-tipo') || 'producto';
+			var articulo = check.getAttribute('data-articulo') || '';
+			var rango = check.getAttribute('data-rango') || '';
+			var itemTexto = check.getAttribute('data-item') || '';
+			var producto = check.getAttribute('data-producto') || '';
+			var precio = parseFloat(check.getAttribute('data-precio') || '0');
+			var precioValido = isNaN(precio) ? 0 : precio;
+			var grupoFila = check.getAttribute('data-grupo-fila') || '';
+			var grupoFilaBase = check.getAttribute('data-grupo-fila-base') || grupoFila;
 
-				if (grupoFila !== '' && check.checked) {
+			if (tipo === 'tela') {
+				if (check.checked) {
+					// Desmarcar cualquier otra tela en la interfaz para que solo aparezca una tela seleccionada a la vez
+					document.querySelectorAll('.check-producto[data-tipo="tela"]').forEach(function (otraTela) {
+						if (otraTela !== check) {
+							otraTela.checked = false;
+						}
+					});
+
+					// Asegurar que esta tela esté en itemsEnPedido
+					var yaExisteTela = itemsEnPedido.some(function (it) {
+						return it.producto === producto;
+					});
+					if (!yaExisteTela) {
+						contadorOrdenSeleccion += 1;
+						itemsEnPedido.push({
+							tipo: 'tela',
+							articulo: articulo,
+							rango: rango,
+							itemTexto: itemTexto,
+							producto: producto,
+							precio: 0,
+							orden: contadorOrdenSeleccion
+						});
+					}
+
+					actualizarProductosPorRango();
+					actualizarListaPedido();
+				} else {
+					// Si el usuario desmarca la tela activa actual, se remueve del pedido
+					removerArticuloCompleto(articulo);
+				}
+				return;
+			}
+
+			// Es un producto o accesorio
+			if (check.checked) {
+				contadorOrdenSeleccion += 1;
+
+				if (grupoFila !== '') {
 					document.querySelectorAll('.check-producto[data-grupo-fila="' + grupoFila.replace(/"/g, '\\"') + '"]').forEach(function (checkRelacionado) {
 						if (checkRelacionado !== check) {
 							checkRelacionado.checked = false;
-							checkRelacionado.removeAttribute('data-orden-seleccion');
+							var relProd = checkRelacionado.getAttribute('data-producto') || '';
+							itemsEnPedido = itemsEnPedido.filter(function (it) {
+								return it.producto !== relProd;
+							});
 						}
 					});
 				}
 
-				actualizarProductosPorRango();
+				if (grupoFilaBase !== '' && articulo !== '') {
+					itemsEnPedido = itemsEnPedido.filter(function (it) {
+						return !(it.grupoFilaBase === grupoFilaBase && it.articulo === articulo);
+					});
+				}
+
+				// Asegurar que la tela correspondiente esté en itemsEnPedido si es un producto con artículo
+				if (articulo !== '' && articulo !== 'Sin articulo') {
+					var telaCheck = document.querySelector('.check-producto[data-tipo="tela"][data-articulo="' + articulo.replace(/"/g, '\\"') + '"]');
+					if (telaCheck) {
+						var telaProd = telaCheck.getAttribute('data-producto') || '';
+						var tieneTelaEnPedido = itemsEnPedido.some(function (it) {
+							return it.producto === telaProd;
+						});
+						if (!tieneTelaEnPedido) {
+							contadorOrdenSeleccion += 1;
+							itemsEnPedido.push({
+								tipo: 'tela',
+								articulo: articulo,
+								rango: telaCheck.getAttribute('data-rango') || rango,
+								itemTexto: telaCheck.getAttribute('data-item') || ('Tela ' + articulo),
+								producto: telaProd,
+								precio: 0,
+								orden: contadorOrdenSeleccion
+							});
+						}
+					}
+				}
+
+				itemsEnPedido.push({
+					tipo: 'producto',
+					articulo: articulo,
+					rango: rango,
+					itemTexto: itemTexto,
+					producto: producto,
+					precio: precioValido,
+					grupoFilaBase: grupoFilaBase,
+					orden: contadorOrdenSeleccion
+				});
+
 				actualizarListaPedido();
+			} else {
+				// Producto desmarcado
+				itemsEnPedido = itemsEnPedido.filter(function (it) {
+					return it.producto !== producto;
+				});
+				actualizarListaPedido();
+			}
 		};
 
 		var registrarEventoCambioCheckbox = function (check) {
-			if (!check.dataset.eventoCambioRegistrado) {
+			if (!check) {
+				return;
+			}
+			if (check.dataset.eventoCambioRegistrado !== '1') {
 				check.addEventListener('change', function () {
 					procesarCambioCheckbox(check);
 				});
@@ -1720,7 +1913,57 @@ if ($resultadoTelas) {
 			}
 		});
 
-		asignarOrdenInicialSeleccion();
+		var inicializarItemsDesdeDOM = function () {
+			var telasIniciales = [];
+			document.querySelectorAll('.check-producto[data-tipo="tela"]:checked').forEach(function (telaCheck) {
+				contadorOrdenSeleccion += 1;
+				var articulo = telaCheck.getAttribute('data-articulo') || '';
+				var rango = telaCheck.getAttribute('data-rango') || '';
+				var itemTexto = telaCheck.getAttribute('data-item') || '';
+				var producto = telaCheck.getAttribute('data-producto') || '';
+
+				telasIniciales.push(telaCheck);
+				itemsEnPedido.push({
+					tipo: 'tela',
+					articulo: articulo,
+					rango: rango,
+					itemTexto: itemTexto,
+					producto: producto,
+					precio: 0,
+					orden: contadorOrdenSeleccion
+				});
+			});
+
+			document.querySelectorAll('.check-producto[data-tipo="producto"]:checked').forEach(function (prodCheck) {
+				contadorOrdenSeleccion += 1;
+				var articulo = prodCheck.getAttribute('data-articulo') || '';
+				var rango = prodCheck.getAttribute('data-rango') || '';
+				var itemTexto = prodCheck.getAttribute('data-item') || '';
+				var producto = prodCheck.getAttribute('data-producto') || '';
+				var precio = parseFloat(prodCheck.getAttribute('data-precio') || '0');
+				var grupoFila = prodCheck.getAttribute('data-grupo-fila') || '';
+
+				itemsEnPedido.push({
+					tipo: 'producto',
+					articulo: articulo,
+					rango: rango,
+					itemTexto: itemTexto,
+					producto: producto,
+					precio: isNaN(precio) ? 0 : precio,
+					grupoFilaBase: grupoFila,
+					orden: contadorOrdenSeleccion
+				});
+			});
+
+			// Si hay múltiples telas marcadas inicialmente, dejamos solo una activa en la interfaz de telas
+			if (telasIniciales.length > 1) {
+				for (var i = 1; i < telasIniciales.length; i++) {
+					telasIniciales[i].checked = false;
+				}
+			}
+		};
+
+		inicializarItemsDesdeDOM();
 		actualizarProductosPorRango();
 		actualizarListaPedido();
 	</script>
