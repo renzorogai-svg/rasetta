@@ -9,6 +9,67 @@ $articuloBuscado = trim($_GET['articulo'] ?? '');
 $mensaje = '';
 $tipoMensaje = '';
 
+if (isset($_GET['eliminado']) && $_GET['eliminado'] === '1') {
+    $mensaje = 'Articulo eliminado correctamente.';
+    $tipoMensaje = 'ok';
+}
+
+if (isset($_GET['actualizado']) && $_GET['actualizado'] === '1') {
+    $mensaje = 'Articulo actualizado correctamente.';
+    $tipoMensaje = 'ok';
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['actualizar_tela'])) {
+    $idTelaActualizar = trim($_POST['id_tela'] ?? '');
+    $articuloBuscado = trim($_POST['articulo_busqueda'] ?? '');
+    $articulo = trim($_POST['articulo_editar'] ?? '');
+    $muestrario = trim($_POST['muestrario_editar'] ?? '');
+    $composicion = trim($_POST['composicion_editar'] ?? '');
+    $peso = trim($_POST['peso_editar'] ?? '');
+    $rango = trim($_POST['rango_editar'] ?? '');
+    $pagina = trim($_POST['pagina_editar'] ?? '');
+    $foto = trim($_POST['foto_editar'] ?? '');
+
+    if (!ctype_digit($idTelaActualizar) || (int) $idTelaActualizar <= 0) {
+        $mensaje = 'No se pudo actualizar: identificador de tela invalido.';
+        $tipoMensaje = 'error';
+    } elseif ($articulo === '' || $muestrario === '' || $composicion === '' || $peso === '' || $rango === '' || $pagina === '') {
+        $mensaje = 'Complete todos los campos antes de guardar.';
+        $tipoMensaje = 'error';
+    } elseif (!ctype_digit($peso) || !ctype_digit($rango)) {
+        $mensaje = 'Peso y Rango deben ser valores numericos enteros.';
+        $tipoMensaje = 'error';
+    } else {
+        $stmtActualizarTela = mysqli_prepare($conexion, 'UPDATE telas SET articulo = ?, muestrario = ?, composicion = ?, pero = ?, rango = ?, pagina = ?, foto = ? WHERE Id = ?');
+
+        if ($stmtActualizarTela) {
+            $idTelaActualizarInt = (int) $idTelaActualizar;
+            $pesoEntero = (int) $peso;
+            $rangoEntero = (int) $rango;
+            mysqli_stmt_bind_param($stmtActualizarTela, 'sssiissi', $articulo, $muestrario, $composicion, $pesoEntero, $rangoEntero, $pagina, $foto, $idTelaActualizarInt);
+            $actualizacionCorrecta = mysqli_stmt_execute($stmtActualizarTela);
+            $errorActualizacion = mysqli_stmt_error($stmtActualizarTela);
+            mysqli_stmt_close($stmtActualizarTela);
+
+            if ($actualizacionCorrecta) {
+                $parametrosRedireccion = ['actualizado' => '1'];
+                if ($articuloBuscado !== '') {
+                    $parametrosRedireccion['articulo'] = $articuloBuscado;
+                }
+
+                header('Location: telas.php?' . http_build_query($parametrosRedireccion));
+                exit;
+            }
+
+            $mensaje = 'No se pudo actualizar el articulo: ' . ($errorActualizacion !== '' ? $errorActualizacion : 'error desconocido.');
+            $tipoMensaje = 'error';
+        } else {
+            $mensaje = 'Ocurrio un error al preparar la actualizacion del articulo.';
+            $tipoMensaje = 'error';
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_tela'])) {
     $idTelaEliminar = trim($_POST['id_tela'] ?? '');
     $articuloBuscado = trim($_POST['articulo'] ?? '');
@@ -24,14 +85,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_tela'])) {
             mysqli_stmt_bind_param($stmtEliminarTela, 'i', $idTelaEliminarInt);
             $eliminacionCorrecta = mysqli_stmt_execute($stmtEliminarTela);
             $filasEliminadas = $eliminacionCorrecta ? mysqli_stmt_affected_rows($stmtEliminarTela) : 0;
+            $errorEliminacion = mysqli_stmt_error($stmtEliminarTela);
             mysqli_stmt_close($stmtEliminarTela);
 
             if ($eliminacionCorrecta && $filasEliminadas > 0) {
-                $mensaje = 'Articulo eliminado correctamente.';
-                $tipoMensaje = 'ok';
-            } else {
-                $mensaje = 'No se pudo eliminar el articulo seleccionado.';
+                $parametrosRedireccion = ['eliminado' => '1'];
+                if ($articuloBuscado !== '') {
+                    $parametrosRedireccion['articulo'] = $articuloBuscado;
+                }
+
+                header('Location: telas.php?' . http_build_query($parametrosRedireccion));
+                exit;
+            } elseif (!$eliminacionCorrecta && $errorEliminacion !== '') {
+                $mensaje = 'No se pudo eliminar el articulo: ' . $errorEliminacion;
                 $tipoMensaje = 'error';
+            } else {
+                $parametrosRedireccion = [];
+                if ($articuloBuscado !== '') {
+                    $parametrosRedireccion['articulo'] = $articuloBuscado;
+                }
+
+                $urlRedireccion = 'telas.php';
+                if ($parametrosRedireccion !== []) {
+                    $urlRedireccion .= '?' . http_build_query($parametrosRedireccion);
+                }
+
+                header('Location: ' . $urlRedireccion);
+                exit;
             }
         } else {
             $mensaje = 'Ocurrio un error al preparar la eliminacion del articulo.';
@@ -51,7 +131,7 @@ if ($resultadoArticulos) {
 }
 
 if ($articuloBuscado !== '') {
-    $stmtTelas = mysqli_prepare($conexion, "SELECT Id, articulo, muestrario, composicion, pero, rango, pagina, foto FROM telas WHERE articulo LIKE CONCAT('%', ?, '%') ORDER BY articulo, muestrario, rango, Id");
+    $stmtTelas = mysqli_prepare($conexion, "SELECT Id, articulo, muestrario, composicion, pero, rango, pagina, foto FROM telas WHERE articulo LIKE CONCAT('%', ?, '%') ORDER BY muestrario, CAST(SUBSTRING_INDEX(pagina, '(', 1) AS UNSIGNED), articulo, rango, Id");
     if ($stmtTelas) {
         mysqli_stmt_bind_param($stmtTelas, 's', $articuloBuscado);
         mysqli_stmt_execute($stmtTelas);
@@ -60,7 +140,7 @@ if ($articuloBuscado !== '') {
         $result = false;
     }
 } else {
-    $result = mysqli_query($conexion, "SELECT Id, articulo, muestrario, composicion, pero, rango, pagina, foto FROM telas ORDER BY articulo, muestrario, rango, Id");
+    $result = mysqli_query($conexion, "SELECT Id, articulo, muestrario, composicion, pero, rango, pagina, foto FROM telas ORDER BY muestrario, CAST(SUBSTRING_INDEX(pagina, '(', 1) AS UNSIGNED), articulo, rango, Id");
 }
 
 $telasPorMuestrario = [];
@@ -72,6 +152,8 @@ if ($result) {
         $nombreMuestrario = trim((string) ($filaTela['muestrario'] ?? ''));
         if ($nombreMuestrario === '') {
             $nombreMuestrario = 'Sin muestrario';
+        } elseif (stripos($nombreMuestrario, 'IL GUARDAROBA ULTIMATE') !== false) {
+            $nombreMuestrario = 'IL GUARDAROBA ULTIMATE';
         }
 
         if (!array_key_exists($nombreMuestrario, $telasPorMuestrario)) {
@@ -245,6 +327,72 @@ if ($result instanceof mysqli_result) {
         .boton-eliminar:hover,
         .boton-eliminar:focus-visible {
             background: #991b1b;
+        }
+        .acciones-tela {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .acciones-tela form {
+            margin: 0;
+        }
+        .boton-editar,
+        .boton-guardar-edicion,
+        .boton-cancelar-edicion {
+            padding: 5px 8px;
+            border: 0;
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .boton-editar {
+            background: #2563eb;
+        }
+        .boton-editar:hover,
+        .boton-editar:focus-visible {
+            background: #1d4ed8;
+        }
+        .boton-guardar-edicion {
+            display: none;
+            background: #15803d;
+        }
+        .boton-guardar-edicion:hover,
+        .boton-guardar-edicion:focus-visible {
+            background: #166534;
+        }
+        .boton-cancelar-edicion {
+            display: none;
+            background: #64748b;
+        }
+        .boton-cancelar-edicion:hover,
+        .boton-cancelar-edicion:focus-visible {
+            background: #475569;
+        }
+        .fila-editando .boton-editar,
+        .fila-editando .boton-eliminar {
+            display: none;
+        }
+        .fila-editando .boton-guardar-edicion,
+        .fila-editando .boton-cancelar-edicion {
+            display: inline-block;
+        }
+        .campo-edicion {
+            display: none;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            border: 1px solid #9bb6c3;
+            border-radius: 6px;
+            font: inherit;
+        }
+        .fila-editando .valor-tela {
+            display: none;
+        }
+        .fila-editando .campo-edicion {
+            display: block;
         }
         .presentacion {
             margin-bottom: 24px;
@@ -512,13 +660,32 @@ if ($result instanceof mysqli_result) {
                             </thead>
                             <tbody>
                                 <?php foreach ($filasMuestrario as $fila): ?>
+                                    <?php $idTela = (int) ($fila['Id'] ?? 0); ?>
                                     <tr>
-                                        <td data-label="Artículo"><?= htmlspecialchars($fila['articulo'] ?? 'Sin artículo') ?></td>
-                                        <td data-label="Muestrario"><?= htmlspecialchars($fila['muestrario'] ?? '-') ?></td>
-                                        <td data-label="Composición"><?= htmlspecialchars($fila['composicion'] ?? '-') ?></td>
-                                        <td data-label="Peso"><?= htmlspecialchars($fila['pero'] ?? '-') ?></td>
-                                        <td data-label="Rango"><?= htmlspecialchars($fila['rango'] ?? '-') ?></td>
-                                        <td data-label="Página"><?= htmlspecialchars($fila['pagina'] ?? '-') ?></td>
+                                        <td data-label="Artículo">
+                                            <span class="valor-tela"><?= htmlspecialchars($fila['articulo'] ?? 'Sin artículo') ?></span>
+                                            <input class="campo-edicion" type="text" name="articulo_editar" value="<?= htmlspecialchars($fila['articulo'] ?? '', ENT_QUOTES, 'UTF-8') ?>" form="editarTela<?= $idTela ?>" required>
+                                        </td>
+                                        <td data-label="Muestrario">
+                                            <span class="valor-tela"><?= htmlspecialchars($fila['muestrario'] ?? '-') ?></span>
+                                            <input class="campo-edicion" type="text" name="muestrario_editar" value="<?= htmlspecialchars($fila['muestrario'] ?? '', ENT_QUOTES, 'UTF-8') ?>" form="editarTela<?= $idTela ?>" required>
+                                        </td>
+                                        <td data-label="Composición">
+                                            <span class="valor-tela"><?= htmlspecialchars($fila['composicion'] ?? '-') ?></span>
+                                            <input class="campo-edicion" type="text" name="composicion_editar" value="<?= htmlspecialchars($fila['composicion'] ?? '', ENT_QUOTES, 'UTF-8') ?>" form="editarTela<?= $idTela ?>" required>
+                                        </td>
+                                        <td data-label="Peso">
+                                            <span class="valor-tela"><?= htmlspecialchars($fila['pero'] ?? '-') ?></span>
+                                            <input class="campo-edicion" type="number" min="0" name="peso_editar" value="<?= htmlspecialchars((string) ($fila['pero'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" form="editarTela<?= $idTela ?>" required>
+                                        </td>
+                                        <td data-label="Rango">
+                                            <span class="valor-tela"><?= htmlspecialchars($fila['rango'] ?? '-') ?></span>
+                                            <input class="campo-edicion" type="number" min="0" name="rango_editar" value="<?= htmlspecialchars((string) ($fila['rango'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" form="editarTela<?= $idTela ?>" required>
+                                        </td>
+                                        <td data-label="Página">
+                                            <span class="valor-tela"><?= htmlspecialchars($fila['pagina'] ?? '-') ?></span>
+                                            <input class="campo-edicion" type="text" name="pagina_editar" value="<?= htmlspecialchars($fila['pagina'] ?? '', ENT_QUOTES, 'UTF-8') ?>" form="editarTela<?= $idTela ?>" required>
+                                        </td>
                                         <td data-label="Foto">
                                             <?php
                                             $fotoValor = trim((string) ($fila['foto'] ?? ''));
@@ -546,13 +713,23 @@ if ($result instanceof mysqli_result) {
                                             <?php if ($rutaFoto !== ''): ?>
                                                 <img class="mini-foto-tela" src="<?= htmlspecialchars($rutaFoto) ?>" alt="Foto de la tela">
                                             <?php endif; ?>
+                                            <input class="campo-edicion" type="text" name="foto_editar" value="<?= htmlspecialchars($fotoValor, ENT_QUOTES, 'UTF-8') ?>" form="editarTela<?= $idTela ?>" placeholder="Nombre del archivo">
                                         </td>
                                         <td data-label="Acción">
-                                            <form method="post" action="telas.php" onsubmit="return confirm('¿Desea eliminar este artículo?');">
-                                                <input type="hidden" name="id_tela" value="<?= (int) ($fila['Id'] ?? 0) ?>">
-                                                <input type="hidden" name="articulo" value="<?= htmlspecialchars($articuloBuscado, ENT_QUOTES, 'UTF-8') ?>">
+                                            <div class="acciones-tela">
+                                                <form id="editarTela<?= $idTela ?>" method="post" action="telas.php">
+                                                    <input type="hidden" name="id_tela" value="<?= $idTela ?>">
+                                                    <input type="hidden" name="articulo_busqueda" value="<?= htmlspecialchars($articuloBuscado, ENT_QUOTES, 'UTF-8') ?>">
+                                                    <button type="submit" name="actualizar_tela" class="boton-guardar-edicion">Guardar</button>
+                                                </form>
+                                                <button type="button" class="boton-editar">Editar</button>
+                                                <button type="button" class="boton-cancelar-edicion">Cancelar</button>
+                                                <form method="post" action="telas.php" onsubmit="return confirm('¿Desea eliminar este artículo?');">
+                                                    <input type="hidden" name="id_tela" value="<?= $idTela ?>">
+                                                    <input type="hidden" name="articulo" value="<?= htmlspecialchars($articuloBuscado, ENT_QUOTES, 'UTF-8') ?>">
                                                 <button type="submit" name="eliminar_tela" class="boton-eliminar">Eliminar</button>
-                                            </form>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -616,6 +793,31 @@ if ($result instanceof mysqli_result) {
                         botonAcordeon.setAttribute('aria-expanded', 'true');
                     }
                 });
+            });
+
+            document.querySelectorAll('tbody tr').forEach(function (fila) {
+                var botonEditar = fila.querySelector('.boton-editar');
+                var botonCancelar = fila.querySelector('.boton-cancelar-edicion');
+                var formularioEdicion = fila.querySelector('form[id^="editarTela"]');
+
+                if (botonEditar) {
+                    botonEditar.addEventListener('click', function () {
+                        fila.classList.add('fila-editando');
+                        var primerCampo = fila.querySelector('.campo-edicion');
+                        if (primerCampo) {
+                            primerCampo.focus();
+                        }
+                    });
+                }
+
+                if (botonCancelar) {
+                    botonCancelar.addEventListener('click', function () {
+                        if (formularioEdicion) {
+                            formularioEdicion.reset();
+                        }
+                        fila.classList.remove('fila-editando');
+                    });
+                }
             });
 
             var cerrarVisorImagen = function () {
