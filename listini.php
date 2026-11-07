@@ -1,24 +1,24 @@
 <?php 
 /*
-22-08-2026 desde laptop
+07-11-2026 desde PC
 */
 require_once __DIR__ . '/conexion.php';
 
 $productosObjetivo = [
-	['db' => 'traje dos piezas', 'titulo' => '2 piece Suit (Traje Dos Piezas)'],
-	['db' => 'traje tres piezas', 'titulo' => '3 piece Suit (Traje Tres Piezas)'],
-	['db' => 'chaqueta', 'titulo' => 'Jacket (Chaqueta)']
+	['db' => 'traje dos piezas', 'titulo' => '2 piece Suit (Traje Dos Piezas)', 'alias' => '2 piece suit'],
+	['db' => 'traje tres piezas', 'titulo' => '3 piece Suit (Traje Tres Piezas)', 'alias' => '3 piece suit'],
+	['db' => 'chaqueta', 'titulo' => 'Jacket (Chaqueta)', 'alias' => 'jacket']
 ];
 
 $productosUnPrecio = [
-	['db' => 'pantalones', 'titulo' => 'Trousers (Pantalones)'],
-    ['db' => 'chaleco', 'titulo' => 'Vest (Chaleco)'],
-    ['db' => 'esmoquin', 'titulo' => 'Tuxedo (Esmoquin)'],
-	['db' => 'esmoquin tres piezas', 'titulo' => '3 Piece Tuxedo (Esmoquin Tres Piezas)'],
-	['db' => 'esmoquin chaqueta', 'titulo' => 'Dinner Jacket(Esmoquin chaqueta)'],
-	['db' => 'esmoquin pantalon', 'titulo' => 'Tuxedo Trousers (Esmoquin Pantalon)'],
-	['db' => 'frac', 'titulo' => 'Tail Coat (Frac)'],
-	['db' => 'cache', 'titulo' => 'Morning Coat Jacket (chaqueta de chaqué)'],
+	['db' => 'pantalones', 'titulo' => 'Trousers (Pantalones)', 'alias' => 'trousers'],
+    ['db' => 'chaleco', 'titulo' => 'Vest (Chaleco)', 'alias' => 'vest'],
+    ['db' => 'esmoquin', 'titulo' => 'Tuxedo (Esmoquin)', 'alias' => 'tuxedo'],
+	['db' => 'esmoquin tres piezas', 'titulo' => '3 Piece Tuxedo (Esmoquin Tres Piezas)', 'alias' => '3 piece tuxedo'],
+	['db' => 'esmoquin chaqueta', 'titulo' => 'Dinner Jacket(Esmoquin chaqueta)', 'alias' => 'dinner jacket'],
+	['db' => 'esmoquin pantalon', 'titulo' => 'Tuxedo Trousers (Esmoquin Pantalon)', 'alias' => 'tuxedo trousers'],
+	['db' => 'frac', 'titulo' => 'Tail Coat (Frac)', 'alias' => 'tail coat'],
+	['db' => 'cache', 'titulo' => 'Morning Coat Jacket (chaqueta de chaqué)', 'alias' => 'morning coat jacket'],
 ];
 
 $datosPorProducto = [];
@@ -27,28 +27,32 @@ $datosSobretodo = [];
 $columnasAccesorios = [];
 $datosAccesorios = [];
 $errorAccesorios = '';
+$clavesProductos = [];
 
 foreach ($productosObjetivo as $item) {
 	$datosPorProducto[$item['db']] = [];
+	$clavesProductos[$item['db']] = $item['db'];
+	$clavesProductos[$item['alias']] = $item['db'];
 }
-
 
 foreach ($productosUnPrecio as $item) {
 	$datosUnPrecio[$item['db']] = [];
+	$clavesProductos[$item['db']] = $item['db'];
+	$clavesProductos[$item['alias']] = $item['db'];
 }
 
 $sql = "SELECT Id, producto, rango, unboton, dosbotones, especial
 		FROM ropadia
-		WHERE producto IN ('traje dos piezas', 'traje tres piezas', 'chaqueta')
-		ORDER BY FIELD(producto, 'traje dos piezas', 'traje tres piezas', 'chaqueta'), rango, Id";
+		WHERE LOWER(TRIM(producto)) IN ('traje dos piezas', 'traje tres piezas', 'chaqueta', '2 piece suit', '3 piece suit', 'jacket')
+		ORDER BY rango, Id";
 
 $resultado = mysqli_query($conexion, $sql);
 
 if ($resultado) {
 	while ($fila = mysqli_fetch_assoc($resultado)) {
 		$claveProducto = strtolower(trim($fila['producto']));
-		if (array_key_exists($claveProducto, $datosPorProducto)) {
-			$datosPorProducto[$claveProducto][] = $fila;
+		if (isset($clavesProductos[$claveProducto]) && array_key_exists($clavesProductos[$claveProducto], $datosPorProducto)) {
+			$datosPorProducto[$clavesProductos[$claveProducto]][] = $fila;
 		}
 	}
 	mysqli_free_result($resultado);
@@ -58,15 +62,15 @@ if ($resultado) {
 
 $sqlUnPrecio = "SELECT Id, producto, rango, precio
 				FROM unprecio
-				WHERE producto IN ('pantalones', 'chaleco', 'esmoquin', 'esmoquin tres piezas', 'esmoquin chaqueta', 'esmoquin pantalon', 'frac', 'cache')
-				ORDER BY FIELD(producto, 'pantalones', 'chaleco', 'esmoquin', 'esmoquin tres piezas', 'esmoquin chaqueta', 'esmoquin pantalon', 'frac', 'cache'), rango, Id";
+				WHERE LOWER(TRIM(producto)) IN ('pantalones', 'chaleco', 'esmoquin', 'esmoquin tres piezas', 'esmoquin chaqueta', 'esmoquin pantalon', 'frac', 'cache', 'trousers', 'vest', 'tuxedo', '3 piece tuxedo', 'dinner jacket', 'tuxedo trousers', 'tail coat', 'morning coat jacket')
+				ORDER BY rango, Id";
 $resultadoUnPrecio = mysqli_query($conexion, $sqlUnPrecio);
 
 if ($resultadoUnPrecio) {
 	while ($filaUnPrecio = mysqli_fetch_assoc($resultadoUnPrecio)) {
 		$productoClave = strtolower(trim($filaUnPrecio['producto']));
-		if (array_key_exists($productoClave, $datosUnPrecio)) {
-			$datosUnPrecio[$productoClave][] = $filaUnPrecio;
+		if (isset($clavesProductos[$productoClave]) && array_key_exists($clavesProductos[$productoClave], $datosUnPrecio)) {
+			$datosUnPrecio[$clavesProductos[$productoClave]][] = $filaUnPrecio;
 		}
 	}
 	mysqli_free_result($resultadoUnPrecio);
@@ -470,4 +474,3 @@ if ($resultadoColumnasAccesorios) {
 	</script>
 </body>
 </html>
-

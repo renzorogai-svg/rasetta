@@ -1,6 +1,6 @@
 <?php
 ob_start();
-/* 29-08-2026  desde Lap Top
+/* 22-09-2026  desde Lap Top
     Archivo: ver_cliente.php
     Descripcion: Muestra los detalles de un cliente y sus pedidos.
 */ 
@@ -124,6 +124,13 @@ function limpiar_nombre_producto_exportacion($producto, $precio = null)
     $texto = preg_replace('/\s{2,}/', ' ', $texto);
 
     return trim($texto);
+}
+
+function limpiar_nombre_tela_exportacion($producto)
+{
+    $composicion = obtener_dato_tela_producto($producto, 'Composicion');
+
+    return 'Composicion: ' . $composicion;
 }
 
 function obtener_rango_producto($producto)
@@ -444,6 +451,9 @@ if (!empty($productosPedido)) {
     }
 }
 
+$ivaPedido = $totalPedido * 0.22;
+$totalConIva = $totalPedido + $ivaPedido;
+
 if (isset($_GET['exportar_excel']) && $_GET['exportar_excel'] === '1') {
     if (!is_array($clienteMostrado) || !ctype_digit($pedidoSeleccionado) || (int) $pedidoSeleccionado <= 0) {
         http_response_code(400);
@@ -584,7 +594,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         $rangoTelaGrupo = !empty($grupoArticulo['telas'])
             ? (string) ($grupoArticulo['telas'][0]['rango'] ?? '')
             : '';
-        $tituloArticuloPdf = $escaparPdf($articuloItem);
+        $tituloArticuloPdf = $escaparPdf(!empty($grupoArticulo['telas']) ? 'Tela ' . $articuloItem : $articuloItem);
         if ($rangoTelaGrupo !== '') {
             $tituloArticuloPdf .= ' <span class="rango-tela">- Rango: ' . $escaparPdf($rangoTelaGrupo) . '</span>';
         }
@@ -593,7 +603,9 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         foreach ($itemsDelArticulo as $item) {
             $precio = obtener_precio_item($item['precio'] ?? '', $item['producto'] ?? '');
             $precioMostrar = obtener_precio_mostrar_item($precio, $item['tipo'] ?? 'producto');
-            $nombreProductoPdf = limpiar_nombre_producto_exportacion($item['producto'] ?? '', $precio);
+            $nombreProductoPdf = ($item['tipo'] ?? 'producto') === 'tela'
+                ? limpiar_nombre_tela_exportacion($item['producto'] ?? '')
+                : limpiar_nombre_producto_exportacion($item['producto'] ?? '', $precio);
             $filasProductosPdf .= '<tr><td>' . $escaparPdf($nombreProductoPdf) . '</td><td class="precio">' . $escaparPdf($precioMostrar) . '</td></tr>';
         }
     }
@@ -631,7 +643,11 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
         $htmlPdf .= '<tr><td>' . $escaparPdf($etiqueta) . '</td><td>' . $escaparPdf($valor) . '</td></tr>';
     }
     $htmlPdf .= '</table><h2>Productos</h2><table class="productos"><thead><tr><th>Producto</th><th class="precio">Precio</th></tr></thead><tbody>';
-    $htmlPdf .= $filasProductosPdf . '<tr class="total"><td>Total</td><td class="precio">' . $escaparPdf(formatear_precio_euro($totalPedido)) . '</td></tr></tbody></table></body></html>';
+    $htmlPdf .= $filasProductosPdf
+        . '<tr><td>Subtotal</td><td class="precio">' . $escaparPdf(formatear_precio_euro($totalPedido)) . '</td></tr>'
+        . '<tr><td>IVA (22%)</td><td class="precio">' . $escaparPdf(formatear_precio_euro($ivaPedido)) . '</td></tr>'
+        . '<tr class="total"><td>Total con IVA</td><td class="precio">' . $escaparPdf(formatear_precio_euro($totalConIva)) . '</td></tr>'
+        . '</tbody></table></body></html>';
 
     try {
         $directorioTemporalPdf = __DIR__ . '/tmp';
@@ -1109,7 +1125,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                                     : '';
                         ?>
                             <div class="encabezado-rango">
-                                <?php echo htmlspecialchars($articuloItem, ENT_QUOTES, 'UTF-8'); ?>
+                                <?php echo htmlspecialchars(!empty($grupoArticulo['telas']) ? 'Tela ' . $articuloItem : $articuloItem, ENT_QUOTES, 'UTF-8'); ?>
                                 <?php if ($rangoTelaGrupo !== ''): ?>
                                     <span class="rango-tela"> - Rango: <?php echo htmlspecialchars($rangoTelaGrupo, ENT_QUOTES, 'UTF-8'); ?></span>
                                 <?php endif; ?>
@@ -1119,9 +1135,7 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                                     $precioProducto = obtener_precio_item($item['precio'] ?? '', $item['producto'] ?? '');
                                     $precioProductoMostrar = obtener_precio_mostrar_item($precioProducto, $item['tipo'] ?? 'producto');
                                     if (($item['tipo'] ?? '') === 'tela') {
-                                        $nombreProductoMostrar = 'Tela ' . obtener_dato_tela_producto($item['producto'] ?? '', 'Articulo')
-                                            . ' | Muestrario: ' . obtener_dato_tela_producto($item['producto'] ?? '', 'Muestrario')
-                                            . ' | Composicion: ' . obtener_dato_tela_producto($item['producto'] ?? '', 'Composicion');
+                                        $nombreProductoMostrar = 'Composicion: ' . obtener_dato_tela_producto($item['producto'] ?? '', 'Composicion');
                                     } else {
                                         $productoMostrar = preg_replace('/\s*\|\s*Peso\s*:\s*[^|]*/i', '', (string) ($item['producto'] ?? ''));
                                         $nombreProductoMostrar = limpiar_nombre_producto_exportacion($productoMostrar, $precioProducto);
@@ -1142,9 +1156,17 @@ if (isset($_GET['exportar_pdf']) && $_GET['exportar_pdf'] === '1') {
                                 </div>
                             <?php endforeach; ?>
                         <?php endforeach; ?>
-                        <div class="fila-producto fila-total">
-                            <div class="nombre-producto">Total</div>
+                        <div class="fila-producto">
+                            <div class="nombre-producto">Subtotal</div>
                             <div class="precio-producto"><?php echo htmlspecialchars(formatear_precio_euro($totalPedido), ENT_QUOTES, 'UTF-8'); ?></div>
+                        </div>
+                        <div class="fila-producto">
+                            <div class="nombre-producto">IVA (22%)</div>
+                            <div class="precio-producto"><?php echo htmlspecialchars(formatear_precio_euro($ivaPedido), ENT_QUOTES, 'UTF-8'); ?></div>
+                        </div>
+                        <div class="fila-producto fila-total">
+                            <div class="nombre-producto">Total con IVA</div>
+                            <div class="precio-producto"><?php echo htmlspecialchars(formatear_precio_euro($totalConIva), ENT_QUOTES, 'UTF-8'); ?></div>
                         </div>
                     </div>
                 <?php endif; ?>

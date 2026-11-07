@@ -1,6 +1,6 @@
 <?php
 /*
-11-09-2026  desde Laptop
+22-09-2026  desde Laptop
 Archivo: seleccion_producto.php
 Descripción: Página para seleccionar productos y telas para un pedido de un cliente.
 */
@@ -276,20 +276,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_pedido'])) {
 }
 
 $productosObjetivo = [
-	['db' => 'traje dos piezas', 'titulo' => '2 piece Suit (Traje Dos Piezas)'],
-	['db' => 'traje tres piezas', 'titulo' => '3 piece Suit (Traje Tres Piezas)'],
-	['db' => 'chaqueta', 'titulo' => 'Jacket (Chaqueta)']
+	['db' => '2 piece Suit', 'titulo' => '2 piece Suit'],
+	['db' => '3 piece Suit', 'titulo' => '3 piece Suit'],
+	['db' => 'Jacket', 'titulo' => 'Jacket']
 ];
 
 $productosUnPrecio = [
-	['db' => 'pantalones', 'titulo' => 'Trousers (Pantalones)'],
-	['db' => 'chaleco', 'titulo' => 'Vest (Chaleco)'],
-	['db' => 'esmoquin', 'titulo' => 'Tuxedo (Esmoquin)'],
-	['db' => 'esmoquin tres piezas', 'titulo' => '3 Piece Tuxedo (Esmoquin Tres Piezas)'],
-	['db' => 'esmoquin chaqueta', 'titulo' => 'Dinner Jacket(Esmoquin chaqueta)'],
-	['db' => 'esmoquin pantalon', 'titulo' => 'Tuxedo Trousers (Esmoquin Pantalon)'],
-	['db' => 'frac', 'titulo' => 'Tail Coat (Frac)'],
-	['db' => 'cache', 'titulo' => 'Morning Coat Jacket (chaqueta de chaqué)'],
+	['db' => 'Trousers', 'titulo' => 'Trousers'],
+	['db' => 'Vest', 'titulo' => 'Vest'],
+	['db' => 'Tuxedo', 'titulo' => 'Tuxedo'],
+	['db' => '3 piece Tuxedo', 'titulo' => '3 piece Tuxedo'],
+	['db' => 'Dinner Jacket', 'titulo' => 'Dinner Jacket'],
+	['db' => 'Tuxedo Trousers', 'titulo' => 'Tuxedo Trousers'],
+	['db' => 'Tail Coat', 'titulo' => 'Tail Coat'],
+	['db' => 'Morning Coat Jacket', 'titulo' => 'Morning Coat Jacket'],
 ];
 
 $datosPorProducto = [];
@@ -312,14 +312,14 @@ foreach ($productosUnPrecio as $item) {
 
 $sql = "SELECT Id, producto, rango, unboton, dosbotones, especial
 		FROM ropadia
-		WHERE producto IN ('traje dos piezas', 'traje tres piezas', 'chaqueta')
-		ORDER BY FIELD(producto, 'traje dos piezas', 'traje tres piezas', 'chaqueta'), rango, Id";
+		WHERE producto IN ('2 piece Suit', '3 piece Suit', 'Jacket')
+		ORDER BY FIELD(producto, '2 piece Suit', '3 piece Suit', 'Jacket'), rango, Id";
 
 $resultado = mysqli_query($conexion, $sql);
 
 if ($resultado) {
 	while ($fila = mysqli_fetch_assoc($resultado)) {
-		$claveProducto = strtolower(trim($fila['producto']));
+		$claveProducto = trim((string) $fila['producto']);
 		if (array_key_exists($claveProducto, $datosPorProducto)) {
 			$datosPorProducto[$claveProducto][] = $fila;
 		}
@@ -331,13 +331,25 @@ if ($resultado) {
 
 $sqlUnPrecio = "SELECT Id, producto, rango, precio
 				FROM unprecio
-				WHERE producto IN ('pantalones', 'chaleco', 'esmoquin', 'esmoquin tres piezas', 'esmoquin chaqueta', 'esmoquin pantalon', 'frac', 'cache')
-				ORDER BY FIELD(producto, 'pantalones', 'chaleco', 'esmoquin', 'esmoquin tres piezas', 'esmoquin chaqueta', 'esmoquin pantalon', 'frac', 'cache'), rango, Id";
+				WHERE TRIM(producto) IN ('pantalones', 'chaleco', 'esmoquin', 'esmoquin tres piezas', 'esmoquin chaqueta', 'esmoquin pantalon', 'frac', 'cache', 'Trousers', 'Vest', 'Tuxedo', '3 piece Tuxedo', 'Dinner Jacket', 'Tuxedo Trousers', 'Tail Coat', 'Morning Coat Jacket')
+				ORDER BY FIELD(TRIM(producto), 'pantalones', 'chaleco', 'esmoquin', 'esmoquin tres piezas', 'esmoquin chaqueta', 'esmoquin pantalon', 'frac', 'cache', 'Trousers', 'Vest', 'Tuxedo', '3 piece Tuxedo', 'Dinner Jacket', 'Tuxedo Trousers', 'Tail Coat', 'Morning Coat Jacket'), rango, Id";
 $resultadoUnPrecio = mysqli_query($conexion, $sqlUnPrecio);
 
 if ($resultadoUnPrecio) {
+	$equivalenciasProductos = [
+		'pantalones' => 'Trousers',
+		'chaleco' => 'Vest',
+		'esmoquin' => 'Tuxedo',
+		'esmoquin tres piezas' => '3 piece Tuxedo',
+		'esmoquin chaqueta' => 'Dinner Jacket',
+		'esmoquin pantalon' => 'Tuxedo Trousers',
+		'frac' => 'Tail Coat',
+		'cache' => 'Morning Coat Jacket'
+	];
+
 	while ($filaUnPrecio = mysqli_fetch_assoc($resultadoUnPrecio)) {
-		$productoClave = strtolower(trim($filaUnPrecio['producto']));
+		$productoClave = trim((string) $filaUnPrecio['producto']);
+		$productoClave = $equivalenciasProductos[$productoClave] ?? $productoClave;
 		if (array_key_exists($productoClave, $datosUnPrecio)) {
 			$datosUnPrecio[$productoClave][] = $filaUnPrecio;
 		}
@@ -451,7 +463,7 @@ if ($esEdicionPedidoExistente && !empty($productosPedidoActual)) {
 			$mues = obtener_dato_tela_producto($pStr, 'Muestrario');
 			$comp = obtener_dato_tela_producto($pStr, 'Composicion');
 
-			$textoTelaMostrar = 'Tela ' . $art . ' | Muestrario: ' . $mues . ' | Composicion: ' . $comp;
+			$textoTelaMostrar = 'Composicion: ' . $comp;
 
 			$itemsInicialesJs[] = [
 				'tipo' => 'tela',
@@ -1072,7 +1084,7 @@ if ($esEdicionPedidoExistente && !empty($productosPedidoActual)) {
 												$rangoTela = trim((string) ($filaTela['rango'] ?? '-'));
 												$paginaTela = trim((string) ($filaTela['pagina'] ?? '-'));
 												$textoTela = 'Tela | Articulo: ' . $articuloTela . ' | Muestrario: ' . $muestrarioTela . ' | Composicion: ' . $composicionTela . ' | Peso: ' . $pesoTela . ' | Rango: ' . $rangoTela . ' | Pagina: ' . $paginaTela;
-												$textoTelaMostrar = 'Tela ' . $articuloTela . ' | Muestrario: ' . $muestrarioTela . ' | Composicion: ' . $composicionTela;
+													$textoTelaMostrar = 'Composicion: ' . $composicionTela;
 												$fotoValor = trim((string) ($filaTela['foto'] ?? ''));
 												$rutaFoto = '';
 
@@ -1182,7 +1194,7 @@ if ($esEdicionPedidoExistente && !empty($productosPedidoActual)) {
 									?>
 									<tr class="fila-producto-rango" data-rango="<?php echo $rangoProducto; ?>">
 										<td><?php echo $rangoProducto; ?></td>
-										<td class="articulos-rango" data-articulos-disponibles="<?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoProducto] ?? []), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoProducto] ?? []), ENT_QUOTES, 'UTF-8'); ?></td>
+										<td class="articulos-rango" data-articulos-disponibles="<?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoProducto] ?? []), ENT_QUOTES, 'UTF-8'); ?>">Seleccione una tela</td>
 										<td class="cell-check">
 											<label class="precio-opcion">
 												<span><?php echo $precioUnBotonMostrar; ?></span>
@@ -1241,8 +1253,8 @@ if ($esEdicionPedidoExistente && !empty($productosPedidoActual)) {
 		<?php endforeach; ?>
 
 		<?php foreach ($productosUnPrecio as $productoUnPrecio): ?>
-			<?php if ($productoUnPrecio['db'] === 'esmoquin'): ?>
-				<h3>Eveningwear (ropa de noche)</h3>
+			<?php if ($productoUnPrecio['db'] === 'Tuxedo'): ?>
+				<h3>Eveningwear</h3>
 			<?php endif; ?>
 			<section class="bloque-tabla">
 				<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
@@ -1270,7 +1282,7 @@ if ($esEdicionPedidoExistente && !empty($productosPedidoActual)) {
 									?>
 									<tr class="fila-producto-rango" data-rango="<?php echo (int) $filaUnPrecio['rango']; ?>">
 										<td><?php echo (int) $filaUnPrecio['rango']; ?></td>
-										<td class="articulos-rango" data-articulos-disponibles="<?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) (int) $filaUnPrecio['rango']] ?? []), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) (int) $filaUnPrecio['rango']] ?? []), ENT_QUOTES, 'UTF-8'); ?></td>
+										<td class="articulos-rango" data-articulos-disponibles="<?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) (int) $filaUnPrecio['rango']] ?? []), ENT_QUOTES, 'UTF-8'); ?>">Seleccione una tela</td>
 										<td><?php echo $precioUnicoMostrar; ?></td>
 										<td class="cell-check">
 											<input
@@ -1294,7 +1306,7 @@ if ($esEdicionPedidoExistente && !empty($productosPedidoActual)) {
 				<?php endif; ?>
 			</section>
 
-			<?php if ($productoUnPrecio['db'] === 'chaleco'): ?>
+			<?php if ($productoUnPrecio['db'] === 'Vest'): ?>
 				<section class="bloque-tabla">
 					<div class="acordeon-linea" role="button" tabindex="0" aria-expanded="false">
 						<span>Overcoat</span>
@@ -1336,7 +1348,7 @@ if ($esEdicionPedidoExistente && !empty($productosPedidoActual)) {
 										?>
 										<tr class="fila-producto-rango" data-rango="<?php echo $rangoSobretodo; ?>">
 											<td><?php echo $rangoSobretodo; ?></td>
-											<td class="articulos-rango" data-articulos-disponibles="<?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoSobretodo] ?? []), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoSobretodo] ?? []), ENT_QUOTES, 'UTF-8'); ?></td>
+											<td class="articulos-rango" data-articulos-disponibles="<?php echo htmlspecialchars(implode(', ', $articulosTelasPorRango[(string) $rangoSobretodo] ?? []), ENT_QUOTES, 'UTF-8'); ?>">Seleccione una tela</td>
 											<td class="cell-check">
 												<label class="precio-opcion">
 													<span><?php echo $precioCategoria1Mostrar; ?></span>
@@ -1574,7 +1586,7 @@ if ($esEdicionPedidoExistente && !empty($productosPedidoActual)) {
 				encabezadoArticulo.className = 'encabezado-rango';
 
 				var textoHeader = document.createElement('span');
-				textoHeader.textContent = articuloGrupo;
+				textoHeader.textContent = grupo.telas.length > 0 ? 'Tela ' + articuloGrupo : articuloGrupo;
 				if (grupo.rango !== '') {
 					var rangoTela = document.createElement('span');
 					rangoTela.className = 'rango-tela';
